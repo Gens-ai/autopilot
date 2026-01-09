@@ -2,11 +2,7 @@
 
 All notable changes to Autopilot will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## [Unreleased]
-
-## [1.1.0] - 2025-01-09
+## 2025-01-09
 
 ### Added
 - **Token Frugality Mode** - All prompts now include instructions to minimize token usage
@@ -30,7 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Explicitly skip completed requirements (`passes: true`) in TDD mode
 
-## [1.0.0] - 2025-01-08
+## 2025-01-08
 
 ### Added
 - Initial release

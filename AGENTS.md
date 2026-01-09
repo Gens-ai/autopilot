@@ -26,6 +26,12 @@ This codebase will outlive you. Every shortcut becomes someone else's burden. Ev
 - Keep changes small and focused
 - One logical change per commit
 
+## Before Pushing
+
+- Update CHANGELOG.md with notable changes
+- Use date headers (## YYYY-MM-DD)
+- Group by: Added, Changed, Fixed, Removed
+
 ## Learnings
 
 Append learnings here as you discover project-specific gotchas:
