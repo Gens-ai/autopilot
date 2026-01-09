@@ -33,15 +33,15 @@
       "tdd": {
         "test": {
           "description": "Document the argument parsing issue and verify current behavior breaks",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Escape/quote args properly OR use different delimiter OR pass via env var/temp file",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Ensure solution works with all special characters",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -49,7 +49,7 @@
         "Args containing parentheses work without bash errors",
         "Complex multi-part instructions don't break"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "2",
@@ -60,15 +60,15 @@
       "tdd": {
         "test": {
           "description": "Identify where sandbox config should be documented",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add `sandbox` config option per feedback loop in autopilot.schema.json. Update autopilot.md to construct commands with appropriate sandbox settings",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Add helpful error message suggestions when database errors detected",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -76,7 +76,7 @@
         "Documentation explains when to use dangerouslyDisableSandbox",
         "autopilot.md uses sandbox config when constructing commands"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "3",
@@ -87,15 +87,15 @@
       "tdd": {
         "test": {
           "description": "Define the baseline/known-failures approach",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add `knownFailures` section to autopilot.schema.json OR implement delta-based checking. Update autopilot.md to capture baseline at start.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Document that projects should ideally have green feedback loops before starting",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -103,7 +103,7 @@
         "Autopilot only fails on NEW errors introduced during the session",
         "Clear documentation on handling pre-existing issues"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "4",
@@ -114,15 +114,15 @@
       "tdd": {
         "test": {
           "description": "Review autopilot.md for notes file handling",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Update prompt to: 'Read notes file IF IT EXISTS, otherwise create with initial state'",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Add template structure for initial notes file",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -130,7 +130,7 @@
         "Initial notes file has proper structure",
         "No errors on first run of a new task file"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "5",
@@ -141,15 +141,15 @@
       "tdd": {
         "test": {
           "description": "Review current TDD flow in autopilot.md",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add explicit step: 'Run test and VERIFY it fails. If test passes, mark requirement as invalid (test isn't testing new behavior)'",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Update JSON structure to track test-fails-first verification",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -157,7 +157,7 @@
         "Requirement is flagged if test passes before implementation",
         "Clear error messaging for invalid tests"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "6",
@@ -168,15 +168,15 @@
       "tdd": {
         "test": {
           "description": "Define summary report format and content",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add summary generation at end of autopilot.md: requirements completed vs stuck, commits made, files modified, test coverage delta if available",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Consider saving summary to a file alongside notes",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -185,7 +185,7 @@
         "Files created/modified are listed",
         "Summary is clear and actionable"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "7",
@@ -196,14 +196,15 @@
       "tdd": {
         "test": {
           "description": "Review current requirement iteration logic",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add argument parsing for --start-from <requirement-id>. Skip requirements before the specified ID.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
-          "description": "Document the resume workflow in autopilot.md"
+          "description": "Document the resume workflow in autopilot.md",
+          "passes": true
         }
       },
       "verification": [
@@ -211,7 +212,7 @@
         "Requirements before that ID are skipped",
         "Works correctly with stuck requirements"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "8",
@@ -222,15 +223,15 @@
       "tdd": {
         "test": {
           "description": "Design rollback tag naming convention",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Create git tag before each requirement (autopilot/req-{id}/start). Add /autopilot rollback <id> mode.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Include rollback instructions in stuck notes",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -238,7 +239,7 @@
         "Rollback command works correctly",
         "Stuck notes mention rollback option"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "9",
@@ -249,15 +250,15 @@
       "tdd": {
         "test": {
           "description": "Design structured progress log format (YAML or JSON)",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Create progress log tracking: start time, end time, commits, files changed per requirement",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Use git commits more intelligently to understand state",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -265,7 +266,7 @@
         "Commits are tracked per requirement",
         "Files changed are recorded"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "10",
@@ -276,15 +277,15 @@
       "tdd": {
         "test": {
           "description": "Review how code-simplifier is invoked",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Explicitly track files modified in current requirement. Pass specific file list to code-simplifier.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Skip files that weren't touched",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -292,7 +293,7 @@
         "Code-simplifier receives explicit file list",
         "Untouched files are skipped"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "11",
@@ -303,15 +304,15 @@
       "tdd": {
         "test": {
           "description": "Update autopilot.schema.json design",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add `testType` field to requirements (unit, integration, e2e). Support different test commands per type.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Allow requirements to specify which test suites to run",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -319,7 +320,7 @@
         "Different test commands per type work",
         "Schema validates testType field"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "12",
@@ -330,15 +331,15 @@
       "tdd": {
         "test": {
           "description": "Document common TDD pitfalls",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add guidance in AGENTS.md about checking for fixture conflicts. Consider adding 'clean test state' step.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Surface guidance when tests fail unexpectedly",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -346,7 +347,7 @@
         "Fixture conflict guidance is clear",
         "Prompt references guidance when appropriate"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "13",
@@ -357,15 +358,15 @@
       "tdd": {
         "test": {
           "description": "Analyze typical requirement completion patterns",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Consider higher defaults for TDD mode OR make iteration smarter ('complete N requirements' instead of 'N iterations')",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Document expected iteration counts for different task file sizes",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -373,7 +374,7 @@
         "Documentation explains iteration expectations",
         "Users can easily adjust for their needs"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "14",
@@ -384,15 +385,15 @@
       "tdd": {
         "test": {
           "description": "Review current command construction",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Make command joining explicit: `${TYPECHECK_CMD} && ${TEST_CMD} && ${LINT_CMD}`",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Or run as separate steps with individual error handling",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -400,7 +401,7 @@
         "Failures in earlier commands stop the chain",
         "Error handling is clear"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "15",
@@ -411,15 +412,15 @@
       "tdd": {
         "test": {
           "description": "Design notification configuration",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add notification config to autopilot.schema.json. Support: webhook, desktop notification command, optional integrations (ntfy, PushOver)",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Document notification setup",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -427,7 +428,7 @@
         "At least one notification method works",
         "Documentation explains setup"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "16",
@@ -438,15 +439,15 @@
       "tdd": {
         "test": {
           "description": "Design dependency graph approach",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add `dependsOn` field to requirements. Document how to identify independent requirements.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Support multiple autopilot instances on separate branches",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -454,7 +455,7 @@
         "Independent requirements identified",
         "Parallel execution documented"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "17",
@@ -465,15 +466,15 @@
       "tdd": {
         "test": {
           "description": "Design issue tracker integration approach",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add workflow for GitHub Issues -> PRD/tasks conversion. Link commits to issues.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Update issues when requirements complete",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -481,7 +482,7 @@
         "Commits reference issue numbers",
         "Issues updated on completion"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "18",
@@ -492,15 +493,15 @@
       "tdd": {
         "test": {
           "description": "Design workspace awareness approach",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add workspace/package config to schema. Support per-package feedback loops.",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Scope requirements to specific packages",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -508,7 +509,7 @@
         "Per-package feedback loops work",
         "Requirements can target specific packages"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "19",
@@ -519,15 +520,15 @@
       "tdd": {
         "test": {
           "description": "Define which examples are needed",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Create: example brainstorm, example PRD, example tasks JSON, example notes file",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Reference examples in documentation",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -536,7 +537,7 @@
         "Example tasks JSON is valid",
         "Example notes file shows structure"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "20",
@@ -547,15 +548,15 @@
       "tdd": {
         "test": {
           "description": "Design metrics collection approach",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Track: success rate, common stuck points, average time per requirement, frequently modified files",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Generate metrics reports",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -563,7 +564,7 @@
         "Success rates are trackable",
         "Common issues are identifiable"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "21",
@@ -574,15 +575,15 @@
       "tdd": {
         "test": {
           "description": "Design auto-documentation triggers",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Add optional step to generate/update docs, README, changelog entries",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Make documentation updates configurable",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -590,7 +591,7 @@
         "Changelog entries generated",
         "Configurable per project"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "22",
@@ -601,15 +602,15 @@
       "tdd": {
         "test": {
           "description": "Design smarter coverage targeting",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Prioritize critical code paths, focus on recently changed code, exclude generated/vendor files",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Make targeting configurable",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -617,7 +618,7 @@
         "Recent changes targeted first",
         "Generated files excluded"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "23",
@@ -628,15 +629,15 @@
       "tdd": {
         "test": {
           "description": "Design learnings automation workflow",
-          "passes": false
+          "passes": true
         },
         "implement": {
           "description": "Prompt to log learnings after stuck items. Categorize by type (gotchas, patterns, dependencies).",
-          "passes": false
+          "passes": true
         },
         "refactor": {
           "description": "Surface relevant learnings at start of related tasks",
-          "passes": false
+          "passes": true
         }
       },
       "verification": [
@@ -644,7 +645,7 @@
         "Learnings are categorized",
         "Relevant learnings surfaced for new tasks"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

@@ -59,6 +59,11 @@
               "type": "boolean",
               "default": true,
               "description": "Whether to run this feedback loop"
+            },
+            "sandbox": {
+              "type": "boolean",
+              "default": true,
+              "description": "Run in sandbox mode. Set to false if command needs network access like database connections or Docker port forwarding"
             }
           }
         },
@@ -67,12 +72,35 @@
           "properties": {
             "command": {
               "type": ["string", "null"],
-              "description": "Command to run tests (e.g., 'npm test', 'pytest', 'go test ./...')"
+              "description": "Default command to run tests (e.g., 'npm test', 'pytest', 'go test ./...')"
             },
             "enabled": {
               "type": "boolean",
               "default": true,
               "description": "Whether to run this feedback loop"
+            },
+            "sandbox": {
+              "type": "boolean",
+              "default": true,
+              "description": "Run in sandbox mode. Set to false if tests need network access like database connections or Docker port forwarding"
+            },
+            "commands": {
+              "type": "object",
+              "description": "Test commands per test type. If a requirement specifies testType, use the corresponding command.",
+              "properties": {
+                "unit": {
+                  "type": ["string", "null"],
+                  "description": "Command for unit tests (e.g., 'npm test -- --testPathPattern=unit')"
+                },
+                "integration": {
+                  "type": ["string", "null"],
+                  "description": "Command for integration tests (e.g., 'npm test -- --testPathPattern=integration')"
+                },
+                "e2e": {
+                  "type": ["string", "null"],
+                  "description": "Command for end-to-end tests (e.g., 'npm run test:e2e', 'playwright test')"
+                }
+              }
             }
           }
         },
@@ -87,6 +115,11 @@
               "type": "boolean",
               "default": true,
               "description": "Whether to run this feedback loop"
+            },
+            "sandbox": {
+              "type": "boolean",
+              "default": true,
+              "description": "Run in sandbox mode. Set to false if linting needs network access"
             }
           }
         }
@@ -94,35 +127,35 @@
     },
     "iterations": {
       "type": "object",
-      "description": "Maximum iterations per mode",
+      "description": "Maximum iterations per mode. Lower defaults for token frugality - restart sessions frequently for fresh context.",
       "properties": {
         "tasks": {
           "type": "integer",
           "default": 15,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for TDD task completion mode (lower default for token frugality)"
+          "description": "Max iterations for TDD task completion. Each requirement needs ~3-5 iterations for full TDD cycle. Default 15 handles ~3-5 requirements per session. Increase for larger task files."
         },
         "tests": {
           "type": "integer",
           "default": 10,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for test coverage mode (lower default for token frugality)"
+          "description": "Max iterations for test coverage mode. Each uncovered path needs ~2-3 iterations. Default 10 handles ~3-5 test additions per session."
         },
         "lint": {
           "type": "integer",
           "default": 15,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for linting mode (lower default for token frugality)"
+          "description": "Max iterations for linting mode. Each lint error fix needs ~1-2 iterations. Default 15 handles ~10-15 fixes per session."
         },
         "entropy": {
           "type": "integer",
           "default": 10,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for entropy/cleanup mode (lower default for token frugality)"
+          "description": "Max iterations for entropy/cleanup mode. Each code smell fix needs ~2-3 iterations. Default 10 handles ~3-5 cleanups per session."
         }
       }
     },
@@ -166,6 +199,246 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Key architectural dependencies"
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "description": "Pre-existing failures to ignore during autopilot runs. Capture these at session start to avoid blocking on issues unrelated to current work.",
+      "properties": {
+        "typecheck": {
+          "type": "object",
+          "properties": {
+            "errorCount": {
+              "type": "integer",
+              "description": "Number of pre-existing typecheck errors to tolerate"
+            },
+            "patterns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Error message patterns to ignore (regex)"
+            }
+          }
+        },
+        "tests": {
+          "type": "object",
+          "properties": {
+            "failingTests": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Names or patterns of known-failing tests to skip"
+            }
+          }
+        },
+        "lint": {
+          "type": "object",
+          "properties": {
+            "errorCount": {
+              "type": "integer",
+              "description": "Number of pre-existing lint errors to tolerate"
+            },
+            "patterns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Error message patterns to ignore (regex)"
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "Test coverage mode targeting options",
+      "properties": {
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for files to exclude from coverage targeting (e.g., generated/*, vendor/*)"
+        },
+        "prioritize": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for critical paths to prioritize (e.g., src/auth/*, src/payments/*)"
+        },
+        "recentDays": {
+          "type": "integer",
+          "default": 30,
+          "description": "Number of days to consider for 'recently changed' prioritization"
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "description": "Auto-documentation settings for updating docs after completing requirements",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to auto-update documentation"
+        },
+        "changelog": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": ["string", "null"],
+              "default": "CHANGELOG.md",
+              "description": "Path to changelog file"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["keepachangelog", "conventional"],
+              "default": "keepachangelog",
+              "description": "Changelog format style"
+            }
+          }
+        },
+        "readme": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether to update README sections"
+            },
+            "sections": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "README sections to update (e.g., features, usage)"
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Metrics tracking configuration for analyzing autopilot effectiveness",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to collect metrics across sessions"
+        },
+        "file": {
+          "type": ["string", "null"],
+          "default": "docs/tasks/autopilot-metrics.json",
+          "description": "File path for storing metrics data"
+        }
+      }
+    },
+    "workspaces": {
+      "type": "object",
+      "description": "Monorepo workspace configuration for projects with multiple packages",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this is a monorepo with workspaces"
+        },
+        "packages": {
+          "type": "object",
+          "description": "Map of package names to their configuration",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Relative path to the package from repo root"
+              },
+              "feedbackLoops": {
+                "type": "object",
+                "description": "Package-specific feedback loop commands (overrides root)",
+                "properties": {
+                  "typecheck": {
+                    "type": "object",
+                    "properties": {
+                      "command": { "type": ["string", "null"] },
+                      "enabled": { "type": "boolean", "default": true },
+                      "sandbox": { "type": "boolean", "default": true }
+                    }
+                  },
+                  "tests": {
+                    "type": "object",
+                    "properties": {
+                      "command": { "type": ["string", "null"] },
+                      "enabled": { "type": "boolean", "default": true },
+                      "sandbox": { "type": "boolean", "default": true }
+                    }
+                  },
+                  "lint": {
+                    "type": "object",
+                    "properties": {
+                      "command": { "type": ["string", "null"] },
+                      "enabled": { "type": "boolean", "default": true },
+                      "sandbox": { "type": "boolean", "default": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "issueTracker": {
+      "type": "object",
+      "description": "Issue tracker integration settings for linking work to GitHub Issues or other trackers",
+      "properties": {
+        "type": {
+          "type": ["string", "null"],
+          "description": "Issue tracker type",
+          "enum": ["github", "gitlab", "linear", "jira", null]
+        },
+        "linkCommits": {
+          "type": "boolean",
+          "default": false,
+          "description": "Append issue references to commit messages"
+        },
+        "updateOnComplete": {
+          "type": "boolean",
+          "default": false,
+          "description": "Comment on issues and update labels when requirements complete"
+        },
+        "labelOnStart": {
+          "type": ["string", "null"],
+          "description": "Label to apply when starting work on a requirement (e.g., 'in-progress')"
+        },
+        "labelOnComplete": {
+          "type": ["string", "null"],
+          "description": "Label to apply when requirement passes (e.g., 'done')"
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "description": "Notification settings for when autopilot completes",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to send notifications on completion"
+        },
+        "command": {
+          "type": ["string", "null"],
+          "description": "Shell command to run on completion. Receives JSON with results via stdin. E.g., 'notify-send \"Autopilot\" \"$1\"' or 'say \"Autopilot complete\"'"
+        },
+        "webhook": {
+          "type": ["string", "null"],
+          "description": "Webhook URL to POST results to on completion"
+        },
+        "ntfy": {
+          "type": "object",
+          "description": "ntfy.sh notification settings",
+          "properties": {
+            "topic": {
+              "type": ["string", "null"],
+              "description": "ntfy topic name (e.g., 'my-autopilot-notifications')"
+            },
+            "server": {
+              "type": "string",
+              "default": "https://ntfy.sh",
+              "description": "ntfy server URL"
+            }
+          }
         }
       }
     }

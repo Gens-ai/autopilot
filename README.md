@@ -179,6 +179,8 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 |---------|-------------|
 | `/autopilot init` | Initialize project configuration (one-time setup) |
 | `/autopilot file.json [N]` | TDD task completion (default: 15 iterations) |
+| `/autopilot file.json --start-from 5` | Resume from requirement ID 5 |
+| `/autopilot rollback 3` | Rollback to before requirement 3 started |
 | `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 10 iterations) |
 | `/autopilot lint [N]` | Fix all lint errors one by one (default: 15 iterations) |
 | `/autopilot entropy [N]` | Clean up code smells and dead code (default: 10 iterations) |
@@ -245,6 +247,49 @@ To prevent infinite loops on intractable problems, autopilot includes stuck dete
 
 Stuck tasks are logged with a `blockedReason` so you can review and fix manually later.
 
+### Resume and Rollback
+
+Autopilot creates git tags before starting each requirement, enabling safe recovery:
+
+**Resume from a specific requirement:**
+```bash
+# Skip requirements 1-4, start from requirement 5
+/autopilot tasks.json --start-from 5
+```
+
+**Rollback to before a requirement started:**
+```bash
+# Undo all changes from requirement 3 onward
+/autopilot rollback 3
+```
+
+Tags are named `autopilot/req-{id}/start` and automatically cleaned up when requirements complete successfully.
+
+### Completion Summary
+
+When autopilot finishes, it outputs a summary including:
+- Requirements completed vs stuck
+- Commits made with short descriptions
+- Files created or modified
+- Any blockers encountered
+
+The summary is also appended to the notes file for reference.
+
+### Notifications
+
+Configure notifications in `autopilot.json` to be alerted when autopilot completes:
+
+```json
+{
+  "notifications": {
+    "enabled": true,
+    "command": "notify-send 'Autopilot' 'Completed!'",
+    "webhook": "https://your-webhook.com/endpoint",
+    "ntfy": { "topic": "my-autopilot" }
+  }
+}
+```
+
 ## File Structure
 
 ```
@@ -254,6 +299,11 @@ autopilot/                    # This repo (source of truth)
 │   ├── tasks.md             # /tasks command
 │   ├── autopilot.md         # /autopilot command
 │   └── init.md              # /autopilot init command
+├── examples/
+│   ├── brainstorm.md        # Example feature brainstorm
+│   ├── prd-user-auth.md     # Example PRD document
+│   ├── tasks-user-auth.json # Example task file with TDD phases
+│   └── notes-user-auth.md   # Example progress notes
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for validation
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
@@ -335,7 +385,50 @@ You can edit `autopilot.json` directly to:
 - Adjust iteration limits for your workflow
 - Change feedback loop commands
 - Disable specific feedback loops (`"enabled": false`)
+- Disable sandbox per feedback loop (`"sandbox": false`) for database/Docker tests
 - Add architecture notes for Claude to reference
+
+### Advanced Configuration
+
+**Baseline failures** - If your project has pre-existing issues, configure baselines to avoid blocking:
+```json
+{
+  "baseline": {
+    "typecheck": { "errorCount": 5 },
+    "tests": { "failingTests": ["flaky-test-name"] },
+    "lint": { "errorCount": 10 }
+  }
+}
+```
+
+**Test types** - Requirements can specify different test types with separate commands:
+```json
+{
+  "feedbackLoops": {
+    "tests": {
+      "command": "npm test",
+      "commands": {
+        "unit": "npm test -- --testPathPattern=unit",
+        "integration": "npm test -- --testPathPattern=integration",
+        "e2e": "npm run test:e2e"
+      }
+    }
+  }
+}
+```
+
+**Monorepo support** - Configure per-package feedback loops:
+```json
+{
+  "workspaces": {
+    "enabled": true,
+    "packages": {
+      "api": { "path": "packages/api", "feedbackLoops": { "tests": { "command": "npm test -w api" } } },
+      "web": { "path": "packages/web", "feedbackLoops": { "tests": { "command": "npm test -w web" } } }
+    }
+  }
+}
+```
 
 ## Tips
 

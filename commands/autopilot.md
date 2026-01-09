@@ -14,6 +14,16 @@ Start an autonomous work session with progress tracking and learnings.
 
 Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10, lint: 15, entropy: 10). Pass a number to override. Lower defaults optimize for token frugality - restart sessions frequently for fresh context.
 
+**Iteration Expectations:**
+| Mode | Default | Per Item | Typical Session |
+|------|---------|----------|-----------------|
+| tasks | 15 | 3-5 iterations/requirement | 3-5 requirements |
+| tests | 10 | 2-3 iterations/test | 3-5 tests |
+| lint | 15 | 1-2 iterations/fix | 10-15 fixes |
+| entropy | 10 | 2-3 iterations/cleanup | 3-5 cleanups |
+
+For larger task files, increase iterations or use `--start-from` to resume across sessions.
+
 ## Pre-flight: Configuration Check
 
 **Before executing any mode, check for `autopilot.json` in the project root.**
@@ -66,12 +76,15 @@ Parse `$ARGUMENTS` to extract:
 1. **Mode** - Determined by first argument (`init`, file path, `tests`, `lint`, or `entropy`)
 2. **Max iterations** - Optional trailing number (defaults from autopilot.json)
 3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode
+4. **--start-from ID** - Optional flag to resume from a specific requirement ID (TDD mode only)
 
 Examples:
 - `/autopilot init` → Run initialization wizard
 - `/autopilot init --force` → Run initialization with auto-detected values
 - `/autopilot tasks.json` → TDD mode, iterations from config (default: 50)
 - `/autopilot tasks.json 30` → TDD mode, 30 iterations
+- `/autopilot tasks.json --start-from 5` → TDD mode, skip requirements before ID 5
+- `/autopilot tasks.json --start-from 5 30` → TDD mode, start from 5, 30 iterations
 - `/autopilot tests 80` → Test mode, 80% target, iterations from config (default: 30)
 - `/autopilot tests 80 15` → Test mode, 80% target, 15 iterations
 - `/autopilot lint 10` → Lint mode, 10 iterations
@@ -85,6 +98,8 @@ Based on the argument ($ARGUMENTS), determine the mode:
 3. **If argument starts with `tests`** → Test coverage mode
 4. **If argument starts with `lint`** → Linting mode
 5. **If argument starts with `entropy`** → Entropy/cleanup mode
+6. **If argument starts with `rollback`** → Rollback mode
+7. **If argument is `metrics`** → Metrics report mode
 
 ## Mode: Init
 
@@ -102,14 +117,31 @@ Read `autopilot.json` to get:
 - `LINT_CMD` from `feedbackLoops.lint.command`
 - `MAXITER` default from `iterations.tasks` (usually 15)
 
+Check for `--start-from ID` flag. If present, extract the START_ID.
+
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `TOKEN FRUGAL MODE: Read TASKFILE-notes.md first to understand current state. Be concise - do not explain, just act. Use targeted file reads. Complete requirements in TASKFILE using TDD. Skip any requirement with passes:true. For the next incomplete requirement: 1) Write failing test, run TEST_CMD to confirm fail, commit. 2) Write minimal implementation, run TEST_CMD to confirm pass, commit. 3) Run code-simplifier on modified files, run TYPECHECK_CMD TEST_CMD LINT_CMD to verify green, commit. Mark tdd.test.passes, tdd.implement.passes, tdd.refactor.passes as you complete each phase. Mark requirement passes true only when all three phases done. Before committing, run TYPECHECK_CMD TEST_CMD LINT_CMD. Do NOT commit if any fail. STUCK HANDLING: If same task fails 3 iterations, add stuck:true and blockedReason, log blocker to notes, skip to next. After each requirement, update TASKFILE-notes.md with Current State section showing last completed, working on, and blockers. Log learnings to AGENTS.md. Output COMPLETE when all requirements pass or all remaining are stuck. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Complete requirements in TASKFILE using TDD. Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. When done generate TASKFILE-summary.md with results and commits and files modified. Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - TASKFILE with the provided file path
 - MAXITER with the provided number or default from `iterations.tasks`
 - TYPECHECK_CMD, TEST_CMD, LINT_CMD with commands from autopilot.json (omit if disabled)
+- START_FROM_INSTRUCTION with `Skip requirements with id less than START_ID.` if --start-from was specified, otherwise remove it
+
+## Mode: Rollback
+
+For `rollback <requirement-id>` arguments. Rolls back to the state before a specific requirement was started.
+
+Usage: `/autopilot rollback 5` - rolls back to before requirement 5 was started
+
+Steps:
+1. Find the git tag `autopilot/req-{id}/start` for the specified requirement
+2. If tag exists, run `git reset --hard autopilot/req-{id}/start`
+3. Delete any tags created after this point
+4. Update the task JSON to reset the requirement and any subsequent requirements to `passes: false`
+
+**Warning**: This is a destructive operation. All commits after the tag will be lost.
 
 ## Mode: Test Coverage
 
@@ -118,10 +150,11 @@ For `tests` or `tests <target%>` arguments.
 Read `autopilot.json` to get:
 - `TEST_CMD` from `feedbackLoops.tests.command`
 - `MAXITER` default from `iterations.tests` (usually 10)
+- Coverage targeting options from `coverage` config
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `TOKEN FRUGAL MODE: Read docs/tasks/test-coverage-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run coverage report. Find uncovered lines. Write tests for critical uncovered paths. Run TEST_CMD to verify pass. Run coverage to verify improvement. Target: TARGET% minimum. STUCK HANDLING: If no coverage increase after 3 iterations, log blocker to notes, output COMPLETE with current coverage. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each test passes. Output COMPLETE when target reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Increase test coverage to TARGET percent minimum. Read docs/tasks/test-coverage-notes.md if it exists or create it with initial state template. Run coverage report. Prioritize uncovered code in this order - 1 recently changed files from git log last 30 days - 2 critical paths like auth and payments and error handling - 3 high complexity functions - 4 remaining uncovered lines. Exclude files matching coverage.exclude patterns. Write tests for highest priority uncovered paths first. Run TEST_CMD to verify pass. Run coverage to verify improvement. If no coverage increase after 3 iterations then log blocker to notes and output COMPLETE with current coverage. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each test passes. Output COMPLETE when target reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - TARGET with the provided percentage (default: 80)
@@ -138,7 +171,7 @@ Read `autopilot.json` to get:
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `TOKEN FRUGAL MODE: Read docs/tasks/lint-fixes-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run LINT_CMD. Fix ONE error at a time. Run LINT_CMD to verify fix. Do not batch fixes. STUCK HANDLING: If same error fails 3 attempts, log to notes with details, skip to next. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no errors remain or only stuck errors. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Fix lint errors one at a time. Read docs/tasks/lint-fixes-notes.md if it exists or create it with initial state template. Run LINT_CMD. Fix ONE error at a time. Run LINT_CMD to verify fix. Do not batch fixes. If same error fails 3 attempts then log to notes with details and skip to next. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no errors remain or only stuck errors. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - MAXITER with the provided number or default from `iterations.lint`
@@ -156,7 +189,7 @@ Read `autopilot.json` to get:
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `TOKEN FRUGAL MODE: Read docs/tasks/entropy-cleanup-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run code-simplifier on recent files. Scan for code smells: unused exports, dead code, inconsistent patterns, duplicates, complex functions. Fix ONE issue at a time. Run TYPECHECK_CMD TEST_CMD LINT_CMD after each fix. Do NOT commit if any fail. STUCK HANDLING: If same issue fails 3 attempts, log to notes, move on. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no smells remain or only stuck issues. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Clean up code entropy. Read docs/tasks/entropy-cleanup-notes.md if it exists or create it with initial state template. Run code-simplifier on recent files. Scan for code smells like unused exports and dead code and inconsistent patterns and duplicates and complex functions. Fix ONE issue at a time. Run TYPECHECK_CMD and TEST_CMD and LINT_CMD after each fix. Do NOT commit if any fail. If same issue fails 3 attempts then log to notes and move on. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no smells remain or only stuck issues. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - MAXITER with the provided number or default from `iterations.entropy`
@@ -173,6 +206,298 @@ All modes include stuck handling to prevent infinite loops on intractable proble
 
 This ensures autopilot makes progress even when some tasks are blocked.
 
+## Completion Summary
+
+When autopilot finishes - whether all requirements pass or session ends - generate a completion summary. Save it to `TASKFILE-summary.md` alongside the notes file.
+
+**Summary format:**
+
+```markdown
+# Autopilot Session Summary
+
+## Results
+- Completed: X requirements
+- Stuck: Y requirements
+- Invalid tests: Z requirements
+- Remaining: N requirements
+
+## Completed Requirements
+- [1] Description of requirement 1
+- [3] Description of requirement 3
+
+## Stuck Requirements
+- [2] Description - Reason: blockedReason from JSON
+
+## Commits Made
+- abc1234 Commit message 1
+- def5678 Commit message 2
+
+## Files Modified
+- path/to/file1.ts
+- path/to/file2.ts
+
+## Next Steps
+- Resume with: /autopilot TASKFILE --start-from X
+- Review stuck items and update requirements if needed
+```
+
+The summary provides:
+- Quick visibility into session results
+- List of commits for review
+- Clear next steps for continuation
+
+## Monorepo and Workspace Support
+
+Autopilot supports monorepos with multiple packages. Configure workspaces in autopilot.json:
+
+```json
+{
+  "workspaces": {
+    "enabled": true,
+    "packages": {
+      "api": {
+        "path": "packages/api",
+        "feedbackLoops": {
+          "tests": { "command": "npm test --workspace=api" },
+          "lint": { "command": "npm run lint --workspace=api" }
+        }
+      },
+      "web": {
+        "path": "packages/web",
+        "feedbackLoops": {
+          "tests": { "command": "npm test --workspace=web" },
+          "lint": { "command": "npm run lint --workspace=web" }
+        }
+      }
+    }
+  }
+}
+```
+
+**Scoping requirements to packages:**
+
+In your task JSON, add a `package` field to requirements:
+
+```json
+{
+  "id": "5",
+  "description": "Add user authentication",
+  "package": "api"
+}
+```
+
+When a requirement specifies a package:
+- Use that package's feedback loop commands instead of root commands
+- Run commands from the package path
+- Track files relative to the package
+
+**Auto-detection:**
+
+Autopilot can detect monorepo structures during `/autopilot init`:
+- npm/yarn/pnpm workspaces via package.json
+- Lerna via lerna.json
+- Nx via nx.json
+- Turborepo via turbo.json
+
+## Issue Tracker Integration
+
+Autopilot can link work to GitHub Issues or other trackers. Configure in autopilot.json:
+
+```json
+{
+  "issueTracker": {
+    "type": "github",
+    "linkCommits": true,
+    "updateOnComplete": true,
+    "labelOnStart": "in-progress",
+    "labelOnComplete": "done"
+  }
+}
+```
+
+**Linking issues to requirements:**
+
+In your task JSON, add an `issue` field to requirements:
+
+```json
+{
+  "id": "5",
+  "description": "Add user authentication",
+  "issue": "#123"
+}
+```
+
+**Commit message linking:**
+
+When `linkCommits: true`, autopilot will append issue references to commit messages:
+- `feat: Add login form (#123)`
+
+**Issue updates:**
+
+When `updateOnComplete: true`, autopilot will comment on the issue when the requirement passes:
+- Adds a comment summarizing the commits
+- Changes label from `labelOnStart` to `labelOnComplete`
+
+**Creating tasks from issues:**
+
+Use `/prd` with a GitHub issue URL to generate a PRD from the issue:
+```
+/prd https://github.com/owner/repo/issues/123
+```
+
+This fetches the issue description and comments to seed the PRD clarifying questions.
+
+## Notifications
+
+Configure notifications in autopilot.json to be alerted when autopilot completes:
+
+```json
+{
+  "notifications": {
+    "enabled": true,
+    "command": "notify-send 'Autopilot' 'Session complete'",
+    "webhook": "https://hooks.example.com/autopilot",
+    "ntfy": {
+      "topic": "my-autopilot",
+      "server": "https://ntfy.sh"
+    }
+  }
+}
+```
+
+**Options:**
+- `command`: Shell command to run. Use for desktop notifications like `notify-send` or `say`
+- `webhook`: URL to POST results JSON to. Works with Slack, Discord, or custom endpoints
+- `ntfy`: ntfy.sh push notification. Just set a topic name to receive on your phone
+
+At least one notification method should be configured if `enabled: true`.
+
+## Auto-Documentation
+
+Autopilot can automatically update documentation after completing requirements. Configure in autopilot.json:
+
+```json
+{
+  "documentation": {
+    "enabled": true,
+    "changelog": {
+      "file": "CHANGELOG.md",
+      "format": "keepachangelog"
+    },
+    "readme": {
+      "enabled": false,
+      "sections": ["features", "usage"]
+    }
+  }
+}
+```
+
+**Changelog generation:**
+
+When enabled, autopilot adds entries to your changelog after completing requirements:
+
+```markdown
+## [Unreleased]
+
+### Added
+- User authentication with email/password (#101)
+- Google OAuth login support (#102)
+
+### Fixed
+- Password reset token expiration (#103)
+```
+
+Supported formats:
+- `keepachangelog` - Keep a Changelog format (default)
+- `conventional` - Conventional Commits style
+
+**README updates:**
+
+When `readme.enabled: true`, autopilot can update specified sections of your README based on completed features. Use with caution - review changes before committing.
+
+**Per-requirement control:**
+
+Add `skipDocs: true` to individual requirements to skip documentation for that item:
+
+```json
+{
+  "id": "5",
+  "description": "Internal refactor",
+  "skipDocs": true
+}
+```
+
+## Metrics and Analytics
+
+Autopilot can track metrics across sessions to help identify patterns and improve effectiveness. Configure in autopilot.json:
+
+```json
+{
+  "metrics": {
+    "enabled": true,
+    "file": "docs/tasks/autopilot-metrics.json"
+  }
+}
+```
+
+**Tracked metrics:**
+- Success rate: completed vs stuck requirements
+- Average time per requirement
+- Common stuck reasons (aggregated from blockedReason fields)
+- Frequently modified files
+- Iterations per requirement
+
+**Metrics file format:**
+
+```json
+{
+  "sessions": [
+    {
+      "date": "2026-01-09",
+      "taskFile": "docs/tasks/prds/user-auth.json",
+      "completed": 5,
+      "stuck": 1,
+      "invalid": 0,
+      "totalIterations": 18,
+      "duration": "45m"
+    }
+  ],
+  "aggregates": {
+    "totalCompleted": 42,
+    "totalStuck": 3,
+    "successRate": 0.93,
+    "avgIterationsPerRequirement": 3.2,
+    "commonStuckReasons": [
+      { "reason": "flaky test", "count": 2 },
+      { "reason": "missing dependency", "count": 1 }
+    ],
+    "frequentlyModifiedFiles": [
+      { "file": "src/auth/login.ts", "count": 8 },
+      { "file": "src/utils/validation.ts", "count": 5 }
+    ]
+  }
+}
+```
+
+**Viewing metrics:**
+
+Run `/autopilot metrics` to generate a summary report of your autopilot usage patterns.
+
+## Resume Workflow
+
+To resume an interrupted autopilot session:
+
+1. **Check the notes file** (`TASKFILE-notes.md`) to see current state
+2. **Find the next requirement ID** from "Working on" or check the JSON for first non-passing requirement
+3. **Resume with --start-from**: `/autopilot TASKFILE --start-from ID`
+
+The `--start-from` flag skips all requirements with IDs less than the specified ID. This is useful when:
+- A session was interrupted and you want to continue
+- You want to re-run from a specific requirement after fixing issues
+- Some early requirements are already complete from a previous run
+
+Note: Requirements with `passes: true`, `stuck: true`, or `invalidTest: true` are always skipped regardless of --start-from.
+
 ## Code Simplifier
 
 The `code-simplifier` agent simplifies code for clarity and maintainability while preserving functionality. Use it via the Task tool with `subagent_type: code-simplifier`.
@@ -181,13 +506,117 @@ When to run:
 - **TDD Refactor phase**: After implementation passes tests, before committing refactor
 - **Entropy mode**: At the start of each iteration on recently modified files
 
+### File Tracking for Code Simplifier
+
+Track files modified during each requirement to pass explicitly to code-simplifier:
+
+1. **Before starting a requirement**: Note which files exist
+2. **During implementation**: Track new files created and existing files modified
+3. **At refactor phase**: Pass only the tracked file list to code-simplifier
+
+Example tracking in notes:
+```markdown
+### Requirement 5 Files
+- src/auth/login.ts (modified)
+- src/auth/types.ts (new)
+- tests/auth/login.test.ts (new)
+```
+
+When invoking code-simplifier, pass the explicit file list:
+```
+Run code-simplifier on these files: src/auth/login.ts, src/auth/types.ts, tests/auth/login.test.ts
+```
+
+This avoids running code-simplifier on untouched files and keeps refactoring focused.
+
 ## TDD Rules (Task Completion Mode)
 
-1. **Red**: Write test first, verify it FAILS before proceeding
+1. **Red**: Write test first, run tests, VERIFY the new test FAILS
+   - If the test passes before implementation, the test is invalid - it is not testing new behavior
+   - Mark the requirement as `invalidTest: true` with reason and skip to next
+   - Only proceed to Green phase after confirming test failure
 2. **Green**: Write minimal code to make test pass
 3. **Refactor**: Run code-simplifier, then verify tests still green
 4. **Never skip**: All three phases required for each requirement
 5. **One at a time**: Complete full TDD cycle before next requirement
+
+### Requirement Dependencies
+
+Requirements can specify a `dependsOn` field to declare dependencies on other requirements:
+
+```json
+{
+  "id": "5",
+  "description": "Add user profile API",
+  "dependsOn": ["2", "3"]
+}
+```
+
+**How dependencies work:**
+- A requirement with `dependsOn` will be skipped until all listed requirement IDs have `passes: true`
+- Independent requirements (no `dependsOn` or empty array) can be worked on in any order
+- Circular dependencies are invalid and will be flagged
+
+**Identifying independent requirements:**
+- Requirements that touch different subsystems or files
+- Features that do not share test fixtures or database state
+- Changes that will not conflict when merged
+
+**Parallel execution with multiple instances:**
+1. Split independent requirements into separate task files
+2. Create a branch for each task file: `git checkout -b autopilot/task-a`
+3. Run autopilot on each branch in separate terminals
+4. Merge branches when complete: `git merge autopilot/task-a autopilot/task-b`
+
+Alternatively, identify a set of independent requirements and run them on a single branch in one session - autopilot will work through them sequentially but you avoid branch management.
+
+### Test Types
+
+Requirements can specify a `testType` field to use different test commands:
+- `unit` - Fast, isolated unit tests (default)
+- `integration` - Tests that involve multiple components or external services
+- `e2e` - End-to-end tests using browser automation or full system tests
+
+Configure test commands per type in autopilot.json:
+
+```json
+{
+  "feedbackLoops": {
+    "tests": {
+      "command": "npm test",
+      "commands": {
+        "unit": "npm test -- --testPathPattern=unit",
+        "integration": "npm test -- --testPathPattern=integration",
+        "e2e": "npm run test:e2e"
+      }
+    }
+  }
+}
+```
+
+In requirement JSON, specify the test type:
+```json
+{
+  "id": "5",
+  "testType": "integration",
+  "description": "Add user authentication API"
+}
+```
+
+If no `testType` is specified, use the default `command`. If `testType` is specified but no matching command exists, fall back to the default.
+
+### Invalid Test Detection
+
+A test that passes before implementation indicates one of:
+- The feature already exists
+- The test is not actually testing the new behavior
+- The test has a bug that makes it always pass
+
+When this happens:
+- Do NOT proceed with implementation
+- Mark requirement with `invalidTest: true` and `invalidTestReason: "..."`
+- Log the issue to notes file
+- Skip to next requirement
 
 ## Common Behaviors (All Modes)
 
@@ -195,9 +624,59 @@ When to run:
 - Before committing, run enabled feedback loops: typecheck, tests, lint
 - Do NOT commit if any feedback loop fails - fix first
 - Skip disabled feedback loops (where `enabled: false`)
+- Check `sandbox` setting for each feedback loop - if `sandbox: false`, use `dangerouslyDisableSandbox: true` when running the command via Bash tool
 - Log mistakes or learnings to AGENTS.md
 - Keep changes small and focused (one logical change per commit)
 - After 3 failed attempts on same issue, mark stuck and move on
+
+### Feedback Loop Execution
+
+Run feedback loops **sequentially** with fail-fast behavior:
+
+1. Run typecheck command (if enabled)
+   - If it fails, stop and fix before continuing
+2. Run test command (if enabled)
+   - If it fails, stop and fix before continuing
+3. Run lint command (if enabled)
+   - If it fails, stop and fix before continuing
+4. Only after ALL enabled loops pass, proceed to commit
+
+This ensures errors are caught and fixed before moving on. Never batch multiple commands together where a failure could be masked.
+
+### Sandbox Configuration
+
+Some feedback loops need network access that the sandbox blocks:
+- **Database connections**: Tests connecting to localhost:5432 or similar
+- **Docker port forwarding**: Commands that need to reach containerized services
+- **External APIs**: Integration tests hitting real endpoints
+
+If you see errors like "Can't reach database server at localhost:5432", the project should set `sandbox: false` for that feedback loop in autopilot.json.
+
+### Pre-existing Failures
+
+**Ideally, projects should have green feedback loops before starting autopilot.** All typecheck, test, and lint commands should pass. This ensures autopilot can detect when your changes break something.
+
+If a project has pre-existing failures that cannot be fixed immediately:
+
+1. **Capture baseline at session start**: Run feedback loops and record error counts
+2. **Configure in autopilot.json**: Add a `baseline` section with known failures
+3. **Delta checking**: Autopilot should only fail on NEW errors beyond the baseline
+
+Example baseline configuration:
+```json
+{
+  "baseline": {
+    "typecheck": { "errorCount": 5 },
+    "tests": { "failingTests": ["test_legacy_*"] },
+    "lint": { "errorCount": 12, "patterns": ["no-unused-vars"] }
+  }
+}
+```
+
+When running feedback loops with a baseline:
+- If current errors <= baseline errors, consider it passing
+- If current errors > baseline errors, a new error was introduced - fail
+- Log which specific new errors appeared
 
 ## Token Frugality
 
@@ -211,7 +690,26 @@ Context accumulates within a session. To optimize token usage:
 
 ### Notes File Format
 
-The notes file (`*-notes.md`) should maintain a structured state section at the top:
+The notes file (`*-notes.md`) should maintain a structured state section at the top.
+
+**Initial template** - create this if the notes file does not exist:
+
+```markdown
+# [Task Name] Progress Notes
+
+## Current State
+- Last completed: none
+- Working on: requirement 1
+- Blockers: none
+
+## Files Modified
+(none yet)
+
+## Session Log
+- [date] Started task file
+```
+
+**Ongoing format** - update after each requirement:
 
 ```markdown
 ## Current State
@@ -229,9 +727,44 @@ The notes file (`*-notes.md`) should maintain a structured state section at the 
 
 This format allows quick state reconstruction when starting a fresh session.
 
+### Progress Tracking Per Requirement
+
+For detailed tracking, maintain a `## Progress` section with structured data per requirement:
+
+```markdown
+## Progress
+
+### Requirement 1: Description
+- Started: 2026-01-09 10:30
+- Completed: 2026-01-09 10:45
+- Duration: 15 min
+- Commits:
+  - abc1234 Add failing test for feature X
+  - def5678 Implement feature X
+  - ghi9012 Refactor feature X implementation
+- Files Changed:
+  - src/feature.ts (new file)
+  - tests/feature.test.ts (new file)
+
+### Requirement 2: Description
+- Started: 2026-01-09 10:46
+- Status: in_progress
+```
+
+This structured format enables:
+- Understanding time spent per requirement
+- Tracking which commits belong to which requirement
+- Quick identification of recently modified files
+- Better context when resuming interrupted sessions
+
 ## Execution
 
-Do not include backticks, markdown formatting, or multi-line content in the args. Keep it as one plain text line.
+**IMPORTANT: Avoid shell metacharacters in args.** The args string is passed through bash which interprets certain characters as shell syntax. To prevent errors:
+- Do NOT use semicolons - use "then" or "and" instead
+- Do NOT use parentheses - rephrase to avoid them
+- Do NOT use colons in phrases like "HANDLING:" - just use plain words
+- Use "and" instead of commas for lists
+- Keep it as one plain text line without backticks or markdown
 
 Parse the user's argument: $ARGUMENTS
 

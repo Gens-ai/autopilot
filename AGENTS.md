@@ -10,6 +10,31 @@ Always write tests BEFORE implementation:
 
 Never skip the red phase. If tests pass before you write implementation, your test isn't testing the right thing.
 
+### Common TDD Pitfalls
+
+**Fixture Conflicts**
+- Tests sharing fixtures can interfere with each other
+- Always check if fixtures are properly isolated
+- Use fresh fixtures per test or reset state between tests
+- If tests pass individually but fail together, suspect fixture pollution
+
+**Test Pollution**
+- Global state modified by one test can break subsequent tests
+- Database records created in one test may affect another
+- Clean up after tests or use transactions that rollback
+
+**Flaky Tests**
+- Tests that sometimes pass and sometimes fail are a red flag
+- Common causes: timing issues, shared state, external dependencies
+- Fix flaky tests immediately - they erode confidence in the test suite
+
+**What To Do When Tests Fail Unexpectedly**
+1. Run the failing test in isolation - does it pass alone?
+2. Check for shared fixtures or global state
+3. Look for database/file cleanup that might be missing
+4. Check if another test is modifying shared resources
+5. Consider adding explicit setup/teardown
+
 ## Code Quality
 
 This codebase will outlive you. Every shortcut becomes someone else's burden. Every hack compounds into technical debt that slows the whole team down.
@@ -34,9 +59,30 @@ This codebase will outlive you. Every shortcut becomes someone else's burden. Ev
 
 ## Learnings
 
-Append learnings here as you discover project-specific gotchas:
+Append learnings here as you discover project-specific gotchas. Categorize by type:
 
-<!-- Example:
-- 2024-01-15: The auth module requires X before Y or it fails silently
-- 2024-01-16: Always use `fetchWithRetry` for external API calls
--->
+### Gotchas
+Project-specific quirks and unexpected behaviors:
+<!-- Example: - 2024-01-15: The auth module requires X before Y or it fails silently -->
+
+### Patterns
+Useful patterns discovered in this codebase:
+<!-- Example: - 2024-01-16: Always use `fetchWithRetry` for external API calls -->
+
+### Dependencies
+Dependency-specific issues and workarounds:
+<!-- Example: - 2024-01-17: Library X v2.0 has breaking change, pin to v1.9 -->
+
+### Testing
+Test-specific learnings:
+<!-- Example: - 2024-01-18: Integration tests need DB_TEST_URL env var set -->
+
+---
+
+**When to add learnings:**
+- After marking a requirement as stuck - document what blocked you
+- After discovering an undocumented behavior
+- After finding a workaround for a dependency issue
+- After a test failure reveals a non-obvious cause
+
+**Format:** `- YYYY-MM-DD: Brief description of the learning`

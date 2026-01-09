@@ -5,7 +5,34 @@ All notable changes to Autopilot will be documented in this file.
 ## 2026-01-09
 
 ### Added
+- **Resume support** - `--start-from <id>` flag to resume from specific requirement
+- **Rollback mechanism** - Git tags created before each requirement (`autopilot/req-{id}/start`), with `/autopilot rollback <id>` mode
+- **Completion summary report** - Shows completed vs stuck requirements, commits made, and files modified when autopilot finishes
+- **Progress tracking** - Structured YAML log in notes file tracking timing, commits, and files per requirement
+- **Completion notifications** - Desktop notifications, webhooks, or ntfy.sh integration via `notifications` config
+- **Test type support** - Requirements can specify `testType` (unit, integration, e2e) with different test commands
+- **Issue tracker integration** - Link commits to GitHub Issues, auto-update issues on completion
+- **Monorepo/workspace support** - Per-package feedback loops with `workspaces` config
+- **Metrics tracking** - Optional collection of success rates, timing, and common stuck points
+- **Auto-documentation** - Optional changelog/README updates after requirements complete
+- **Example files** - `/examples/` directory with brainstorm, PRD, tasks, and notes examples
+- **Sandbox config per feedback loop** - Control sandbox mode individually (for database/Docker tests)
+- **Baseline failures** - Ignore pre-existing typecheck/test/lint failures via `baseline` config
+- **Coverage targeting** - Prioritize critical paths, exclude generated files, focus on recent changes
+- **Dependency ordering** - Requirements can specify `dependsOn` for parallel execution planning
+- **TDD pitfalls documentation** - AGENTS.md section on test isolation and fixture conflicts
 - **CLAUDE.md** - Context file for Claude Code with project overview, architecture, and key concepts
+
+### Changed
+- **Explicit TDD enforcement** - Tests must fail before implementation, flagged as invalid if they pass early
+- **Smarter code-simplifier** - Explicitly tracks files modified per requirement, passes specific file list
+- **Feedback loop joining** - Commands explicitly joined with `&&` for proper error handling
+- **Iteration counts** - Updated documentation explaining expected iterations per requirement
+- **Notes file bootstrap** - Gracefully handles missing notes file on first run, creates with template
+
+### Fixed
+- **Argument parsing** - Fixed Ralph Loop skill args with semicolons/parentheses being interpreted as shell commands
+- **Pre-existing failures** - Baseline config allows autopilot to continue despite existing issues
 
 ## 2025-01-09
 

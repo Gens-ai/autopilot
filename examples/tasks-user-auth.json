@@ -1,0 +1,158 @@
+{
+  "name": "user-auth",
+  "description": "User authentication system with email/password and OAuth",
+  "goals": [
+    "Enable secure user registration and login",
+    "Support multiple authentication methods",
+    "Implement secure session management"
+  ],
+  "nonGoals": [
+    "Two-factor authentication",
+    "Admin user management",
+    "Enterprise SSO"
+  ],
+  "technicalNotes": "Using bcrypt for passwords, JWT for sessions, passport.js for OAuth",
+  "requirements": [
+    {
+      "id": "1",
+      "category": "functional",
+      "priority": "high",
+      "description": "Create User model with email, password hash, and verification status",
+      "testType": "unit",
+      "tdd": {
+        "test": {
+          "description": "Test User model creation, validation, and password hashing",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create User model with bcrypt password hashing",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Extract password hashing to separate utility",
+          "passes": false
+        }
+      },
+      "verification": [
+        "User model exists with required fields",
+        "Passwords are hashed with bcrypt",
+        "Email validation works"
+      ],
+      "passes": false
+    },
+    {
+      "id": "2",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement user registration endpoint",
+      "dependsOn": ["1"],
+      "testType": "integration",
+      "issue": "#101",
+      "tdd": {
+        "test": {
+          "description": "Test POST /auth/register creates user and returns token",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create registration endpoint with validation",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Add rate limiting middleware",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Registration creates user in database",
+        "Returns JWT token on success",
+        "Validates email format and password strength"
+      ],
+      "passes": false
+    },
+    {
+      "id": "3",
+      "category": "functional",
+      "priority": "high",
+      "description": "Implement login endpoint",
+      "dependsOn": ["1", "2"],
+      "testType": "integration",
+      "issue": "#102",
+      "tdd": {
+        "test": {
+          "description": "Test POST /auth/login authenticates and returns token",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create login endpoint with password verification",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Add login attempt tracking",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Correct credentials return JWT",
+        "Wrong credentials return 401",
+        "Rate limiting prevents brute force"
+      ],
+      "passes": false
+    },
+    {
+      "id": "4",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Implement password reset flow",
+      "dependsOn": ["1"],
+      "testType": "integration",
+      "tdd": {
+        "test": {
+          "description": "Test forgot password email and reset token flow",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create reset token generation and password update",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Add token expiration handling",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Reset email is sent",
+        "Token allows password change",
+        "Token expires after use or timeout"
+      ],
+      "passes": false
+    },
+    {
+      "id": "5",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add Google OAuth login",
+      "dependsOn": ["1"],
+      "testType": "e2e",
+      "tdd": {
+        "test": {
+          "description": "Test Google OAuth redirect and callback",
+          "passes": false
+        },
+        "implement": {
+          "description": "Configure passport-google-oauth20 strategy",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Extract OAuth config to environment",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Google login redirects correctly",
+        "Callback creates/links user",
+        "Returns valid JWT"
+      ],
+      "passes": false
+    }
+  ]
+}

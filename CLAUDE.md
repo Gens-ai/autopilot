@@ -78,6 +78,14 @@ This repo has no build system or tests - it's pure markdown documentation. Chang
 
 **Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init}.md ~/.claude/AGENTS.md`
 
+## Examples
+
+The `examples/` directory contains reference files:
+- `brainstorm.md` - Initial feature brainstorm before PRD
+- `prd-user-auth.md` - Example PRD document
+- `tasks-user-auth.json` - Example task file with TDD tracking
+- `notes-user-auth.md` - Example progress notes file
+
 ## JSON Schema
 
 `autopilot.schema.json` validates `autopilot.json`. Key required fields:
