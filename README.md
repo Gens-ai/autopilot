@@ -69,7 +69,7 @@ Start a new Claude Code session for the commands to become available.
 /autopilot init          → Initialize project configuration (one-time setup)
 /prd feature-name        → Human-readable PRD (you review)
 /tasks prd-file.md       → Machine-readable JSON (for autopilot)
-/sandbox                 → Enable sandbox mode (no permission prompts)
+/sandbox                 → Enable sandbox mode (highly adivsed for safer autonomy)
 /autopilot tasks.json    → Autonomous TDD execution
 ```
 
@@ -86,6 +86,14 @@ docs/plans/my-feature-brainstorm.md
 ```
 
 The better your initial thinking, the better the output.
+
+### Pro Tip: Let it fly
+
+If you really want to sleep or go for a walk outside while autopilot builds your features, you'll need to tell Claude to skip permission prompts. Use this carefully. You might want to spin up a VM to run this in if you want to be optimally careful. Start your Claude session with;
+
+```bash
+claude --dangerously-skip-permissions
+```
 
 ### Step 0: Initialize Project (One-Time)
 

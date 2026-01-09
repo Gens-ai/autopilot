@@ -1,0 +1,650 @@
+{
+  "name": "improvements",
+  "description": "Comprehensive improvements to the Autopilot workflow toolkit based on real-world testing feedback and enhancement suggestions",
+  "goals": [
+    "Strengthen TDD enforcement with explicit failure verification",
+    "Improve robustness for real-world project conditions (pre-existing failures, sandbox issues)",
+    "Add completion reporting and progress tracking",
+    "Enable resume and rollback capabilities",
+    "Better integration with external tools and services"
+  ],
+  "nonGoals": [
+    "Complete rewrite of existing commands",
+    "Building a web UI or dashboard",
+    "Supporting languages/frameworks outside the current enum"
+  ],
+  "technicalNotes": "This project is markdown/documentation-based. Changes affect prompt files in /commands/ and schema files. No traditional unit tests - verification is through schema validation and manual testing.",
+  "_tdd": false,
+  "_priority_order": [
+    "1. Critical bugs blocking workflow (arg parsing, sandbox, pre-existing failures)",
+    "2. Core workflow improvements (TDD enforcement, notes bootstrap)",
+    "3. User experience (completion reports, resume, rollback)",
+    "4. Configuration and flexibility (schema updates)",
+    "5. Nice-to-haves (notifications, integrations, examples)"
+  ],
+  "_step_size": "One logical change per commit. Quality over speed.",
+  "requirements": [
+    {
+      "id": "1",
+      "category": "bugfix",
+      "priority": "high",
+      "description": "Fix Ralph Loop skill argument parsing - args with semicolons and parentheses are interpreted as shell commands",
+      "context": "The args string was being parsed by bash, breaking on `;` and `()`. Errors like 'bash: implement: command not found'.",
+      "tdd": {
+        "test": {
+          "description": "Document the argument parsing issue and verify current behavior breaks",
+          "passes": false
+        },
+        "implement": {
+          "description": "Escape/quote args properly OR use different delimiter OR pass via env var/temp file",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Ensure solution works with all special characters",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Args containing semicolons are passed correctly",
+        "Args containing parentheses work without bash errors",
+        "Complex multi-part instructions don't break"
+      ],
+      "passes": false
+    },
+    {
+      "id": "2",
+      "category": "bugfix",
+      "priority": "high",
+      "description": "Document and handle sandbox blocking database connectivity",
+      "context": "Tests fail with 'Can't reach database server at localhost:5432' in sandbox mode. Docker port forwarding doesn't work.",
+      "tdd": {
+        "test": {
+          "description": "Identify where sandbox config should be documented",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add `sandbox` config option per feedback loop in autopilot.schema.json. Update autopilot.md to construct commands with appropriate sandbox settings",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Add helpful error message suggestions when database errors detected",
+          "passes": false
+        }
+      },
+      "verification": [
+        "autopilot.schema.json has sandbox option per feedback loop",
+        "Documentation explains when to use dangerouslyDisableSandbox",
+        "autopilot.md uses sandbox config when constructing commands"
+      ],
+      "passes": false
+    },
+    {
+      "id": "3",
+      "category": "bugfix",
+      "priority": "high",
+      "description": "Handle pre-existing failures that block TDD workflow",
+      "context": "Pre-existing TypeScript errors or missing ESLint config blocks progress on unrelated work.",
+      "tdd": {
+        "test": {
+          "description": "Define the baseline/known-failures approach",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add `knownFailures` section to autopilot.schema.json OR implement delta-based checking. Update autopilot.md to capture baseline at start.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Document that projects should ideally have green feedback loops before starting",
+          "passes": false
+        }
+      },
+      "verification": [
+        "autopilot.json can specify known/baseline failures to ignore",
+        "Autopilot only fails on NEW errors introduced during the session",
+        "Clear documentation on handling pre-existing issues"
+      ],
+      "passes": false
+    },
+    {
+      "id": "4",
+      "category": "bugfix",
+      "priority": "medium",
+      "description": "Fix notes file bootstrap - handle non-existent notes file on first run",
+      "context": "Prompt says 'Read notes file first' but it doesn't exist on first run.",
+      "tdd": {
+        "test": {
+          "description": "Review autopilot.md for notes file handling",
+          "passes": false
+        },
+        "implement": {
+          "description": "Update prompt to: 'Read notes file IF IT EXISTS, otherwise create with initial state'",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Add template structure for initial notes file",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Autopilot handles missing notes file gracefully",
+        "Initial notes file has proper structure",
+        "No errors on first run of a new task file"
+      ],
+      "passes": false
+    },
+    {
+      "id": "5",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add explicit TDD enforcement - assert test fails before implementation",
+      "context": "Currently we ask Claude to verify tests fail but there's no enforcement.",
+      "tdd": {
+        "test": {
+          "description": "Review current TDD flow in autopilot.md",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add explicit step: 'Run test and VERIFY it fails. If test passes, mark requirement as invalid (test isn't testing new behavior)'",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Update JSON structure to track test-fails-first verification",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Prompt explicitly requires test to fail before implementation",
+        "Requirement is flagged if test passes before implementation",
+        "Clear error messaging for invalid tests"
+      ],
+      "passes": false
+    },
+    {
+      "id": "6",
+      "category": "functional",
+      "priority": "high",
+      "description": "Generate completion summary report when autopilot finishes",
+      "context": "Users need visibility into what was accomplished.",
+      "tdd": {
+        "test": {
+          "description": "Define summary report format and content",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add summary generation at end of autopilot.md: requirements completed vs stuck, commits made, files modified, test coverage delta if available",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Consider saving summary to a file alongside notes",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Summary shows completed vs stuck requirements",
+        "Commits are listed with short descriptions",
+        "Files created/modified are listed",
+        "Summary is clear and actionable"
+      ],
+      "passes": false
+    },
+    {
+      "id": "7",
+      "category": "functional",
+      "priority": "high",
+      "description": "Add --start-from flag to resume from specific requirement",
+      "context": "If autopilot stops mid-run, it restarts evaluation from scratch.",
+      "tdd": {
+        "test": {
+          "description": "Review current requirement iteration logic",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add argument parsing for --start-from <requirement-id>. Skip requirements before the specified ID.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Document the resume workflow in autopilot.md"
+        }
+      },
+      "verification": [
+        "Can specify starting requirement ID",
+        "Requirements before that ID are skipped",
+        "Works correctly with stuck requirements"
+      ],
+      "passes": false
+    },
+    {
+      "id": "8",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add rollback mechanism with git tags",
+      "context": "If a requirement breaks things badly, need easy way to undo.",
+      "tdd": {
+        "test": {
+          "description": "Design rollback tag naming convention",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create git tag before each requirement (autopilot/req-{id}/start). Add /autopilot rollback <id> mode.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Include rollback instructions in stuck notes",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Git tags created at requirement start",
+        "Rollback command works correctly",
+        "Stuck notes mention rollback option"
+      ],
+      "passes": false
+    },
+    {
+      "id": "9",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Improve progress tracking with structured log",
+      "context": "Current tracking via notes file and JSON is unstructured.",
+      "tdd": {
+        "test": {
+          "description": "Design structured progress log format (YAML or JSON)",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create progress log tracking: start time, end time, commits, files changed per requirement",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Use git commits more intelligently to understand state",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Progress log captures timing per requirement",
+        "Commits are tracked per requirement",
+        "Files changed are recorded"
+      ],
+      "passes": false
+    },
+    {
+      "id": "10",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Smarter code-simplifier integration with explicit file tracking",
+      "context": "Currently runs on 'modified files' which is vague.",
+      "tdd": {
+        "test": {
+          "description": "Review how code-simplifier is invoked",
+          "passes": false
+        },
+        "implement": {
+          "description": "Explicitly track files modified in current requirement. Pass specific file list to code-simplifier.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Skip files that weren't touched",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Files modified per requirement are tracked",
+        "Code-simplifier receives explicit file list",
+        "Untouched files are skipped"
+      ],
+      "passes": false
+    },
+    {
+      "id": "11",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add testType field for integration/E2E test support",
+      "context": "Currently assumes unit tests only.",
+      "tdd": {
+        "test": {
+          "description": "Update autopilot.schema.json design",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add `testType` field to requirements (unit, integration, e2e). Support different test commands per type.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Allow requirements to specify which test suites to run",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Requirements can specify test type",
+        "Different test commands per type work",
+        "Schema validates testType field"
+      ],
+      "passes": false
+    },
+    {
+      "id": "12",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add TDD guidance for test isolation issues",
+      "context": "Tests sharing fixtures caused conflicts during TDD cycles.",
+      "tdd": {
+        "test": {
+          "description": "Document common TDD pitfalls",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add guidance in AGENTS.md about checking for fixture conflicts. Consider adding 'clean test state' step.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Surface guidance when tests fail unexpectedly",
+          "passes": false
+        }
+      },
+      "verification": [
+        "AGENTS.md has TDD pitfalls section",
+        "Fixture conflict guidance is clear",
+        "Prompt references guidance when appropriate"
+      ],
+      "passes": false
+    },
+    {
+      "id": "13",
+      "category": "functional",
+      "priority": "low",
+      "description": "Review and adjust default iteration counts for TDD",
+      "context": "Default 15 iterations may be too low. Each requirement needs ~3 phases plus retries.",
+      "tdd": {
+        "test": {
+          "description": "Analyze typical requirement completion patterns",
+          "passes": false
+        },
+        "implement": {
+          "description": "Consider higher defaults for TDD mode OR make iteration smarter ('complete N requirements' instead of 'N iterations')",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Document expected iteration counts for different task file sizes",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Default iterations are appropriate for typical workloads",
+        "Documentation explains iteration expectations",
+        "Users can easily adjust for their needs"
+      ],
+      "passes": false
+    },
+    {
+      "id": "14",
+      "category": "functional",
+      "priority": "low",
+      "description": "Fix feedback loop command joining with explicit &&",
+      "context": "Commands are concatenated without clear joining. Need explicit &&.",
+      "tdd": {
+        "test": {
+          "description": "Review current command construction",
+          "passes": false
+        },
+        "implement": {
+          "description": "Make command joining explicit: `${TYPECHECK_CMD} && ${TEST_CMD} && ${LINT_CMD}`",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Or run as separate steps with individual error handling",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Commands are joined with && correctly",
+        "Failures in earlier commands stop the chain",
+        "Error handling is clear"
+      ],
+      "passes": false
+    },
+    {
+      "id": "15",
+      "category": "functional",
+      "priority": "medium",
+      "description": "Add completion notification support",
+      "context": "User has to check back manually when autopilot finishes.",
+      "tdd": {
+        "test": {
+          "description": "Design notification configuration",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add notification config to autopilot.schema.json. Support: webhook, desktop notification command, optional integrations (ntfy, PushOver)",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Document notification setup",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Schema supports notification config",
+        "At least one notification method works",
+        "Documentation explains setup"
+      ],
+      "passes": false
+    },
+    {
+      "id": "16",
+      "category": "functional",
+      "priority": "low",
+      "description": "Add dependsOn field for parallel requirement execution",
+      "context": "Some requirements could be worked on simultaneously.",
+      "tdd": {
+        "test": {
+          "description": "Design dependency graph approach",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add `dependsOn` field to requirements. Document how to identify independent requirements.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Support multiple autopilot instances on separate branches",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Requirements can specify dependencies",
+        "Independent requirements identified",
+        "Parallel execution documented"
+      ],
+      "passes": false
+    },
+    {
+      "id": "17",
+      "category": "integration",
+      "priority": "low",
+      "description": "Add issue tracker integration support",
+      "context": "Pull tasks from external sources like GitHub Issues or Linear.",
+      "tdd": {
+        "test": {
+          "description": "Design issue tracker integration approach",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add workflow for GitHub Issues -> PRD/tasks conversion. Link commits to issues.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Update issues when requirements complete",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Can import from GitHub Issues",
+        "Commits reference issue numbers",
+        "Issues updated on completion"
+      ],
+      "passes": false
+    },
+    {
+      "id": "18",
+      "category": "functional",
+      "priority": "low",
+      "description": "Add monorepo/workspace support",
+      "context": "Currently assumes single project.",
+      "tdd": {
+        "test": {
+          "description": "Design workspace awareness approach",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add workspace/package config to schema. Support per-package feedback loops.",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Scope requirements to specific packages",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Monorepo structure detected",
+        "Per-package feedback loops work",
+        "Requirements can target specific packages"
+      ],
+      "passes": false
+    },
+    {
+      "id": "19",
+      "category": "documentation",
+      "priority": "low",
+      "description": "Create example files in /examples/ directory",
+      "context": "Help users understand expected formats.",
+      "tdd": {
+        "test": {
+          "description": "Define which examples are needed",
+          "passes": false
+        },
+        "implement": {
+          "description": "Create: example brainstorm, example PRD, example tasks JSON, example notes file",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Reference examples in documentation",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Example brainstorm document exists",
+        "Example PRD markdown exists",
+        "Example tasks JSON is valid",
+        "Example notes file shows structure"
+      ],
+      "passes": false
+    },
+    {
+      "id": "20",
+      "category": "functional",
+      "priority": "low",
+      "description": "Add metrics and analytics tracking",
+      "context": "Track autopilot effectiveness over time.",
+      "tdd": {
+        "test": {
+          "description": "Design metrics collection approach",
+          "passes": false
+        },
+        "implement": {
+          "description": "Track: success rate, common stuck points, average time per requirement, frequently modified files",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Generate metrics reports",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Metrics are collected during runs",
+        "Success rates are trackable",
+        "Common issues are identifiable"
+      ],
+      "passes": false
+    },
+    {
+      "id": "21",
+      "category": "functional",
+      "priority": "low",
+      "description": "Add auto-documentation after feature completion",
+      "context": "Generate/update docs after features are done.",
+      "tdd": {
+        "test": {
+          "description": "Design auto-documentation triggers",
+          "passes": false
+        },
+        "implement": {
+          "description": "Add optional step to generate/update docs, README, changelog entries",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Make documentation updates configurable",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Documentation can be auto-updated",
+        "Changelog entries generated",
+        "Configurable per project"
+      ],
+      "passes": false
+    },
+    {
+      "id": "22",
+      "category": "functional",
+      "priority": "low",
+      "description": "Smarter test coverage mode targeting",
+      "context": "Currently just targets a percentage.",
+      "tdd": {
+        "test": {
+          "description": "Design smarter coverage targeting",
+          "passes": false
+        },
+        "implement": {
+          "description": "Prioritize critical code paths, focus on recently changed code, exclude generated/vendor files",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Make targeting configurable",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Critical paths prioritized",
+        "Recent changes targeted first",
+        "Generated files excluded"
+      ],
+      "passes": false
+    },
+    {
+      "id": "23",
+      "category": "functional",
+      "priority": "low",
+      "description": "Automate AGENTS.md learnings capture",
+      "context": "Learnings section exists but isn't systematically used.",
+      "tdd": {
+        "test": {
+          "description": "Design learnings automation workflow",
+          "passes": false
+        },
+        "implement": {
+          "description": "Prompt to log learnings after stuck items. Categorize by type (gotchas, patterns, dependencies).",
+          "passes": false
+        },
+        "refactor": {
+          "description": "Surface relevant learnings at start of related tasks",
+          "passes": false
+        }
+      },
+      "verification": [
+        "Stuck items prompt for learnings",
+        "Learnings are categorized",
+        "Relevant learnings surfaced for new tasks"
+      ],
+      "passes": false
+    }
+  ]
+}
