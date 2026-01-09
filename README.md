@@ -66,6 +66,7 @@ Start a new Claude Code session for the commands to become available.
 ## Workflow
 
 ```
+/autopilot init          → Initialize project configuration (one-time setup)
 /prd feature-name        → Human-readable PRD (you review)
 /tasks prd-file.md       → Machine-readable JSON (for autopilot)
 /sandbox                 → Enable sandbox mode (no permission prompts)
@@ -85,6 +86,27 @@ docs/plans/my-feature-brainstorm.md
 ```
 
 The better your initial thinking, the better the output.
+
+### Step 0: Initialize Project (One-Time)
+
+Before using autopilot in a new project, initialize the configuration:
+
+```bash
+/autopilot init
+```
+
+This command:
+1. **Checks your environment** - Verifies git is clean, detects installed tools
+2. **Analyzes your codebase** - Detects project type, test patterns, architecture
+3. **Configures feedback loops** - Finds your test/lint/typecheck commands
+4. **Creates `autopilot.json`** - Saves all settings for autopilot to use
+
+You only need to run this once per project. The resulting `autopilot.json` should be committed to your repository.
+
+**Quick setup with auto-detected values:**
+```bash
+/autopilot init --force
+```
 
 ### Step 1: Create PRD
 
@@ -147,12 +169,13 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 
 | Command | Description |
 |---------|-------------|
-| `/autopilot file.json [N]` | TDD task completion (default 20 iterations) |
-| `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 20 iterations) |
-| `/autopilot lint [N]` | Fix all lint errors one by one (default 20 iterations) |
-| `/autopilot entropy [N]` | Clean up code smells and dead code (default 20 iterations) |
+| `/autopilot init` | Initialize project configuration (one-time setup) |
+| `/autopilot file.json [N]` | TDD task completion (default from config: 50 iterations) |
+| `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 30 iterations) |
+| `/autopilot lint [N]` | Fix all lint errors one by one (default 50 iterations) |
+| `/autopilot entropy [N]` | Clean up code smells and dead code (default 30 iterations) |
 
-Pass an optional number `N` to set max iterations (e.g., `/autopilot tasks.json 30`).
+Pass an optional number `N` to override the default iterations from `autopilot.json`.
 
 ## How It Works
 
@@ -212,7 +235,10 @@ autopilot/                    # This repo (source of truth)
 ├── commands/
 │   ├── prd.md               # /prd command
 │   ├── tasks.md             # /tasks command
-│   └── autopilot.md         # /autopilot command
+│   ├── autopilot.md         # /autopilot command
+│   └── init.md              # /autopilot init command
+├── autopilot.template.json  # Template for autopilot.json
+├── autopilot.schema.json    # JSON schema for validation
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
 └── README.md
@@ -221,16 +247,78 @@ autopilot/                    # This repo (source of truth)
 ├── commands/
 │   ├── prd.md → repo
 │   ├── tasks.md → repo
-│   └── autopilot.md → repo
+│   ├── autopilot.md → repo
+│   └── init.md → repo
 └── AGENTS.md → repo
 
 your-project/                # Generated during workflow
+├── autopilot.json           # Project configuration (created by /autopilot init)
 └── docs/tasks/
     └── prds/
         ├── feature.md       # Human-readable PRD
         ├── feature.json     # Machine-readable tasks
         └── feature-notes.md # Progress log (auto-generated)
 ```
+
+## Configuration: autopilot.json
+
+The `autopilot.json` file stores project-specific settings. Created by `/autopilot init`, it should be committed to your repository.
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
+  "version": "1.0.0",
+  "project": {
+    "type": "nodejs",
+    "conventions": {
+      "testFilePattern": "*.test.ts",
+      "testDirectory": "src/__tests__",
+      "sourceDirectory": "src"
+    }
+  },
+  "feedbackLoops": {
+    "typecheck": { "command": "npm run typecheck", "enabled": true },
+    "tests": { "command": "npm test", "enabled": true },
+    "lint": { "command": "npm run lint", "enabled": true }
+  },
+  "iterations": {
+    "tasks": 50,
+    "tests": 30,
+    "lint": 50,
+    "entropy": 30
+  },
+  "server": {
+    "type": "github",
+    "owner": "your-org",
+    "repo": "your-repo",
+    "mcp": "github"
+  },
+  "codebase": {
+    "patterns": ["React", "TypeScript", "Express"],
+    "architecture": "Monolith with React frontend and Express API",
+    "dependencies": ["PostgreSQL", "Redis"]
+  }
+}
+```
+
+### Configuration Fields
+
+| Field | Description |
+|-------|-------------|
+| `project.type` | Project language/framework (nodejs, python, go, etc.) |
+| `project.conventions` | Test file patterns and directory locations |
+| `feedbackLoops` | Commands for typecheck, tests, and lint |
+| `iterations` | Default max iterations per mode |
+| `server` | Git server info for MCP integration |
+| `codebase` | Discovered patterns and architecture notes |
+
+### Manual Configuration
+
+You can edit `autopilot.json` directly to:
+- Adjust iteration limits for your workflow
+- Change feedback loop commands
+- Disable specific feedback loops (`"enabled": false`)
+- Add architecture notes for Claude to reference
 
 ## Tips
 

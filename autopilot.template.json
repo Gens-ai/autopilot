@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
+  "version": "1.0.0",
+
+  "project": {
+    "type": null,
+    "conventions": {
+      "testFilePattern": null,
+      "testDirectory": null,
+      "sourceDirectory": null
+    }
+  },
+
+  "feedbackLoops": {
+    "typecheck": {
+      "command": null,
+      "enabled": true
+    },
+    "tests": {
+      "command": null,
+      "enabled": true
+    },
+    "lint": {
+      "command": null,
+      "enabled": true
+    }
+  },
+
+  "iterations": {
+    "tasks": 50,
+    "tests": 30,
+    "lint": 50,
+    "entropy": 30
+  },
+
+  "server": {
+    "type": null,
+    "owner": null,
+    "repo": null,
+    "mcp": null
+  },
+
+  "codebase": {
+    "patterns": [],
+    "architecture": null,
+    "dependencies": []
+  }
+}
