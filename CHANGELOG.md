@@ -2,6 +2,11 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-09
+
+### Added
+- **CLAUDE.md** - Context file for Claude Code with project overview, architecture, and key concepts
+
 ## 2025-01-09
 
 ### Added
