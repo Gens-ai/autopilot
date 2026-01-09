@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
+  "title": "Autopilot Configuration",
+  "description": "Configuration file for Autopilot - autonomous TDD development with Claude Code",
+  "type": "object",
+  "required": ["version", "project", "feedbackLoops", "iterations"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "description": "Configuration schema version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "project": {
+      "type": "object",
+      "description": "Project type and conventions",
+      "required": ["type", "conventions"],
+      "properties": {
+        "type": {
+          "type": ["string", "null"],
+          "description": "Project type/language",
+          "enum": ["nodejs", "python", "go", "rust", "ruby", "java", "typescript", "php", "dotnet", null]
+        },
+        "conventions": {
+          "type": "object",
+          "properties": {
+            "testFilePattern": {
+              "type": ["string", "null"],
+              "description": "Glob pattern for test files (e.g., '*.test.ts', '*_test.py')"
+            },
+            "testDirectory": {
+              "type": ["string", "null"],
+              "description": "Directory containing tests (e.g., 'tests/', '__tests__/')"
+            },
+            "sourceDirectory": {
+              "type": ["string", "null"],
+              "description": "Main source directory (e.g., 'src/', 'lib/')"
+            }
+          }
+        }
+      }
+    },
+    "feedbackLoops": {
+      "type": "object",
+      "description": "Commands to run before committing",
+      "properties": {
+        "typecheck": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": ["string", "null"],
+              "description": "Command to run type checking (e.g., 'npm run typecheck', 'tsc --noEmit', 'mypy .')"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to run this feedback loop"
+            }
+          }
+        },
+        "tests": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": ["string", "null"],
+              "description": "Command to run tests (e.g., 'npm test', 'pytest', 'go test ./...')"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to run this feedback loop"
+            }
+          }
+        },
+        "lint": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": ["string", "null"],
+              "description": "Command to run linting (e.g., 'npm run lint', 'eslint .', 'ruff check .')"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether to run this feedback loop"
+            }
+          }
+        }
+      }
+    },
+    "iterations": {
+      "type": "object",
+      "description": "Maximum iterations per mode",
+      "properties": {
+        "tasks": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Max iterations for TDD task completion mode"
+        },
+        "tests": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Max iterations for test coverage mode"
+        },
+        "lint": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Max iterations for linting mode"
+        },
+        "entropy": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Max iterations for entropy/cleanup mode"
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "description": "Git server configuration",
+      "properties": {
+        "type": {
+          "type": ["string", "null"],
+          "description": "Server type",
+          "enum": ["github", "gitlab", "bitbucket", null]
+        },
+        "owner": {
+          "type": ["string", "null"],
+          "description": "Repository owner/organization"
+        },
+        "repo": {
+          "type": ["string", "null"],
+          "description": "Repository name"
+        },
+        "mcp": {
+          "type": ["string", "null"],
+          "description": "MCP server name if configured (e.g., 'github' for GitHub MCP)"
+        }
+      }
+    },
+    "codebase": {
+      "type": "object",
+      "description": "Discovered codebase patterns and architecture",
+      "properties": {
+        "patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Discovered patterns (e.g., 'React', 'monorepo', 'microservices')"
+        },
+        "architecture": {
+          "type": ["string", "null"],
+          "description": "Brief description of project architecture"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Key architectural dependencies"
+        }
+      }
+    }
+  }
+}

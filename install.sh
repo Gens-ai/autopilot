@@ -13,7 +13,7 @@ echo "Installing Autopilot commands..."
 mkdir -p ~/.claude/commands
 
 # Symlink command files
-for cmd in prd.md tasks.md autopilot.md; do
+for cmd in prd.md tasks.md autopilot.md init.md; do
     if [ -L ~/.claude/commands/$cmd ]; then
         rm ~/.claude/commands/$cmd
     elif [ -f ~/.claude/commands/$cmd ]; then
@@ -38,8 +38,10 @@ echo ""
 echo "Installation complete!"
 echo ""
 echo "Commands available:"
-echo "  /prd        - Create a PRD"
-echo "  /tasks      - Convert PRD to tasks"
-echo "  /autopilot  - Run autonomous TDD execution"
+echo "  /prd            - Create a PRD"
+echo "  /tasks          - Convert PRD to tasks"
+echo "  /autopilot      - Run autonomous TDD execution"
+echo "  /autopilot init - Initialize project configuration"
 echo ""
+echo "Run '/autopilot init' in your project to set up autopilot configuration."
 echo "See README.md for usage instructions."
