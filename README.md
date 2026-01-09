@@ -72,6 +72,20 @@ Start a new Claude Code session for the commands to become available.
 /autopilot tasks.json    → Autonomous TDD execution
 ```
 
+### Pro Tip: Brainstorm First
+
+For best results, start by brainstorming your feature in a markdown file before running `/prd`. Jot down your ideas, requirements, and any technical considerations. Then feed that file to the `/prd` command - Claude will ask clarifying questions to refine your rough ideas into a well-structured implementation plan.
+
+```bash
+# Brainstorm your feature
+docs/plans/my-feature-brainstorm.md
+
+# Then run /prd with your notes
+/prd @docs/plans/my-feature-brainstorm.md
+```
+
+The better your initial thinking, the better the output.
+
 ### Step 1: Create PRD
 
 ```bash
