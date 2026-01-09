@@ -4,9 +4,9 @@ A workflow for autonomous, test-driven development using Claude Code and the Ral
 
 ## Credits
 
-This workflow is built on the [Ralph Wiggum] (https://ghuntley.com/ralph/) approach by (https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum) approach by [Geoffrey Huntley] (https://ghuntley.com/author/ghuntley/) (June 2025). Ralph runs your AI coding CLI in a loop, letting it work autonomously on a list of tasks.
+This workflow is built on the [Ralph Wiggum](https://ghuntley.com/ralph/) approach by [Geoffrey Huntley](https://ghuntley.com/author/ghuntley/) (July 2025). Ralph runs your AI coding CLI in a loop, letting it work autonomously on a list of tasks.
 
-Additional inspiration from [snarktank/ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) for PRD and task generation prompts. Some tips were also applied from [Matt Pocock](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum).
+Additional inspiration from this amazing video walkthrough by [Ryan Carson](https://www.youtube.com/watch?v=RpvQH0r0ecM) and his repo [snarktank/ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) for PRD and task generation prompts. Some tips were also applied from [Matt Pocock](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum).
 
 ## Requirements
 
@@ -22,7 +22,7 @@ Additional inspiration from [snarktank/ai-dev-tasks](https://github.com/snarktan
 ### 1. Clone this repo
 
 ```bash
-git clone https://github.com/yourusername/autopilot.git
+git clone https://github.com/Gens-ai/autopilot.git
 cd autopilot
 ```
 
@@ -40,17 +40,24 @@ This creates symlinks from the repo to `~/.claude/`:
 
 Updates to the repo are automatically available (just `git pull`).
 
-### 3. Install Ralph Loop plugin
+### 3. Install Claude plugins
 
 ```bash
-# Install the official Claude plugins (includes ralph-loop)
 claude plugins:install claude-plugins-official
 ```
 
-### 4. Verify installation
+This installs the official Anthropic plugin collection, which includes:
+- **ralph-loop** - Runs Claude in a loop for autonomous execution
+- **code-simplifier** - Refactors code for clarity during TDD refactor phase
+
+### 4. Restart Claude Code
+
+Start a new Claude Code session for the commands to become available.
+
+### 5. Verify installation
 
 ```bash
-# In any Claude Code session, these commands should be available:
+# These commands should now be available:
 /prd
 /tasks
 /autopilot
