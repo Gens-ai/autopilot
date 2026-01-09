@@ -170,12 +170,12 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 | Command | Description |
 |---------|-------------|
 | `/autopilot init` | Initialize project configuration (one-time setup) |
-| `/autopilot file.json [N]` | TDD task completion (default from config: 50 iterations) |
-| `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 30 iterations) |
-| `/autopilot lint [N]` | Fix all lint errors one by one (default 50 iterations) |
-| `/autopilot entropy [N]` | Clean up code smells and dead code (default 30 iterations) |
+| `/autopilot file.json [N]` | TDD task completion (default: 15 iterations) |
+| `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 10 iterations) |
+| `/autopilot lint [N]` | Fix all lint errors one by one (default: 15 iterations) |
+| `/autopilot entropy [N]` | Clean up code smells and dead code (default: 10 iterations) |
 
-Pass an optional number `N` to override the default iterations from `autopilot.json`.
+Pass an optional number `N` to override the default iterations from `autopilot.json`. Lower defaults optimize for token frugality.
 
 ## How It Works
 
@@ -188,20 +188,29 @@ Claude tracks progress through persistent state:
 - Reading the notes file (progress log with timestamps)
 - Checking git history (all commits from previous iterations)
 
+### Token Frugality
+
+Autopilot is optimized for token efficiency:
+
+1. **Low iteration defaults** - Defaults are 10-15 iterations per session. Restart frequently for fresh context.
+2. **Read notes first** - Each iteration reads the notes file first to understand current state, avoiding redundant exploration.
+3. **Structured notes** - Notes maintain a "Current State" section for quick state reconstruction.
+4. **Concise mode** - Claude is instructed to act without explaining, minimizing output tokens.
+5. **Targeted reads** - Uses line ranges instead of reading entire files when possible.
+
 ### Managing Context Limits
 
 To avoid hitting context limits on large tasks:
 
-1. **Use smaller iteration limits** - Default is 20 iterations. For complex tasks, you may want fewer.
-2. **Break large task files into batches** - 5-7 requirements per JSON file works well.
-3. **Restart on the same file** - When context gets heavy, end the session and run `/autopilot` again on the same task file. Claude reads the JSON and continues from where it left off.
-4. **Custom iterations** - Pass a number to override the default: `/autopilot tasks.json 10`
+1. **Break large task files into batches** - 5-7 requirements per JSON file works well.
+2. **Restart on the same file** - When context gets heavy, end the session and run `/autopilot` again on the same task file. Claude reads the JSON and notes file, then continues from where it left off.
+3. **Custom iterations** - Pass a number to override the default: `/autopilot tasks.json 10`
 
 Example workflow for large features:
 ```bash
-/autopilot tasks.json 15    # Run 15 iterations
+/autopilot tasks.json       # Run with default 15 iterations
 # Session ends or gets heavy
-/autopilot tasks.json 15    # Fresh context, continues from completed tasks
+/autopilot tasks.json       # Fresh context, continues from completed tasks
 ```
 
 ### Feedback Loops
@@ -282,10 +291,10 @@ The `autopilot.json` file stores project-specific settings. Created by `/autopil
     "lint": { "command": "npm run lint", "enabled": true }
   },
   "iterations": {
-    "tasks": 50,
-    "tests": 30,
-    "lint": 50,
-    "entropy": 30
+    "tasks": 15,
+    "tests": 10,
+    "lint": 15,
+    "entropy": 10
   },
   "server": {
     "type": "github",

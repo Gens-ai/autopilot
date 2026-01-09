@@ -98,31 +98,31 @@
       "properties": {
         "tasks": {
           "type": "integer",
-          "default": 50,
+          "default": 15,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for TDD task completion mode"
+          "description": "Max iterations for TDD task completion mode (lower default for token frugality)"
         },
         "tests": {
           "type": "integer",
-          "default": 30,
+          "default": 10,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for test coverage mode"
+          "description": "Max iterations for test coverage mode (lower default for token frugality)"
         },
         "lint": {
           "type": "integer",
-          "default": 50,
+          "default": 15,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for linting mode"
+          "description": "Max iterations for linting mode (lower default for token frugality)"
         },
         "entropy": {
           "type": "integer",
-          "default": 30,
+          "default": 10,
           "minimum": 1,
           "maximum": 200,
-          "description": "Max iterations for entropy/cleanup mode"
+          "description": "Max iterations for entropy/cleanup mode (lower default for token frugality)"
         }
       }
     },

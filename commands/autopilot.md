@@ -12,7 +12,7 @@ Start an autonomous work session with progress tracking and learnings.
 /autopilot entropy [max-iterations]         # Code cleanup mode
 ```
 
-Default max-iterations are configured in `autopilot.json` (tasks: 50, tests: 30, lint: 50, entropy: 30). Pass a number to override.
+Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10, lint: 15, entropy: 10). Pass a number to override. Lower defaults optimize for token frugality - restart sessions frequently for fresh context.
 
 ## Pre-flight: Configuration Check
 
@@ -100,11 +100,11 @@ Read `autopilot.json` to get:
 - `TYPECHECK_CMD` from `feedbackLoops.typecheck.command` (if enabled)
 - `TEST_CMD` from `feedbackLoops.tests.command`
 - `LINT_CMD` from `feedbackLoops.lint.command`
-- `MAXITER` default from `iterations.tasks` (usually 50)
+- `MAXITER` default from `iterations.tasks` (usually 15)
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Complete requirements in TASKFILE using TDD. Skip any requirement with passes:true already set. For the next incomplete requirement: 1) Write failing test first, run TEST_CMD to confirm it fails, commit test. 2) Write minimal implementation to pass the test, run TEST_CMD to confirm it passes, commit implementation. 3) Run code-simplifier agent on modified files, then run TYPECHECK_CMD TEST_CMD LINT_CMD to verify still green, commit refactor. Mark tdd.test.passes, tdd.implement.passes, tdd.refactor.passes as you complete each phase. Mark requirement passes true only when all three phases done. Before committing, run TYPECHECK_CMD TEST_CMD LINT_CMD. Do NOT commit if any fail. STUCK HANDLING: If you fail the same task 3 iterations in a row, add stuck:true and blockedReason to the requirement, log the blocker to notes file, skip to next requirement. After each requirement, append progress to TASKFILE-notes.md. Log learnings to AGENTS.md. Output COMPLETE when all requirements pass or all remaining are stuck. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `TOKEN FRUGAL MODE: Read TASKFILE-notes.md first to understand current state. Be concise - do not explain, just act. Use targeted file reads. Complete requirements in TASKFILE using TDD. Skip any requirement with passes:true. For the next incomplete requirement: 1) Write failing test, run TEST_CMD to confirm fail, commit. 2) Write minimal implementation, run TEST_CMD to confirm pass, commit. 3) Run code-simplifier on modified files, run TYPECHECK_CMD TEST_CMD LINT_CMD to verify green, commit. Mark tdd.test.passes, tdd.implement.passes, tdd.refactor.passes as you complete each phase. Mark requirement passes true only when all three phases done. Before committing, run TYPECHECK_CMD TEST_CMD LINT_CMD. Do NOT commit if any fail. STUCK HANDLING: If same task fails 3 iterations, add stuck:true and blockedReason, log blocker to notes, skip to next. After each requirement, update TASKFILE-notes.md with Current State section showing last completed, working on, and blockers. Log learnings to AGENTS.md. Output COMPLETE when all requirements pass or all remaining are stuck. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - TASKFILE with the provided file path
@@ -117,11 +117,11 @@ For `tests` or `tests <target%>` arguments.
 
 Read `autopilot.json` to get:
 - `TEST_CMD` from `feedbackLoops.tests.command`
-- `MAXITER` default from `iterations.tests` (usually 30)
+- `MAXITER` default from `iterations.tests` (usually 10)
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run test coverage report. Find uncovered lines. Write tests for the most critical uncovered code paths. Run TEST_CMD to verify tests pass. Run coverage again to verify improvement. Target: TARGET% coverage minimum. STUCK HANDLING: If you cannot increase coverage after 3 consecutive iterations, log the blocker to notes file and output COMPLETE with current coverage. Append progress to docs/tasks/test-coverage-notes.md. Log learnings to AGENTS.md. Commit after each test file passes. Output COMPLETE when target coverage reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `TOKEN FRUGAL MODE: Read docs/tasks/test-coverage-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run coverage report. Find uncovered lines. Write tests for critical uncovered paths. Run TEST_CMD to verify pass. Run coverage to verify improvement. Target: TARGET% minimum. STUCK HANDLING: If no coverage increase after 3 iterations, log blocker to notes, output COMPLETE with current coverage. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each test passes. Output COMPLETE when target reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - TARGET with the provided percentage (default: 80)
@@ -134,11 +134,11 @@ For `lint` argument.
 
 Read `autopilot.json` to get:
 - `LINT_CMD` from `feedbackLoops.lint.command`
-- `MAXITER` default from `iterations.lint` (usually 50)
+- `MAXITER` default from `iterations.lint` (usually 15)
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run LINT_CMD. Fix ONE linting error at a time. Run LINT_CMD again to verify the fix. Do not batch fixes. STUCK HANDLING: If you cannot fix a specific lint error after 3 attempts, log it to notes file with the error details and skip to next error. Append progress to docs/tasks/lint-fixes-notes.md. Log learnings to AGENTS.md. Commit after each fix passes lint. Output COMPLETE when no lint errors remain or only stuck errors remain. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `TOKEN FRUGAL MODE: Read docs/tasks/lint-fixes-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run LINT_CMD. Fix ONE error at a time. Run LINT_CMD to verify fix. Do not batch fixes. STUCK HANDLING: If same error fails 3 attempts, log to notes with details, skip to next. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no errors remain or only stuck errors. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - MAXITER with the provided number or default from `iterations.lint`
@@ -152,11 +152,11 @@ Read `autopilot.json` to get:
 - `TYPECHECK_CMD` from `feedbackLoops.typecheck.command` (if enabled)
 - `TEST_CMD` from `feedbackLoops.tests.command`
 - `LINT_CMD` from `feedbackLoops.lint.command`
-- `MAXITER` default from `iterations.entropy` (usually 30)
+- `MAXITER` default from `iterations.entropy` (usually 10)
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run code-simplifier agent on recently modified files. Then scan for code smells: unused exports, dead code, inconsistent patterns, duplicate code, overly complex functions. Fix ONE issue at a time. Run TYPECHECK_CMD TEST_CMD LINT_CMD after each fix. Do NOT commit if any fail. STUCK HANDLING: If you cannot fix an issue after 3 attempts, log it to notes file and move on. Append what you changed to docs/tasks/entropy-cleanup-notes.md. Log learnings to AGENTS.md. Commit after each fix passes all checks. Output COMPLETE when no obvious code smells remain or only stuck issues remain. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `TOKEN FRUGAL MODE: Read docs/tasks/entropy-cleanup-notes.md first. Be concise - do not explain, just act. Use targeted file reads. Run code-simplifier on recent files. Scan for code smells: unused exports, dead code, inconsistent patterns, duplicates, complex functions. Fix ONE issue at a time. Run TYPECHECK_CMD TEST_CMD LINT_CMD after each fix. Do NOT commit if any fail. STUCK HANDLING: If same issue fails 3 attempts, log to notes, move on. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no smells remain or only stuck issues. --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - MAXITER with the provided number or default from `iterations.entropy`
@@ -198,6 +198,36 @@ When to run:
 - Log mistakes or learnings to AGENTS.md
 - Keep changes small and focused (one logical change per commit)
 - After 3 failed attempts on same issue, mark stuck and move on
+
+## Token Frugality
+
+Context accumulates within a session. To optimize token usage:
+
+1. **Read notes first**: Always read the notes file before exploring. It contains current state and what was already done.
+2. **Be concise**: Do not explain what you're about to do - just do it. Minimize commentary.
+3. **Targeted reads**: Use line ranges instead of reading entire files when possible.
+4. **Don't re-read**: If a file is summarized in notes, don't read it again unless modifying it.
+5. **Structured notes**: Update the notes file with current state so the next session can resume efficiently.
+
+### Notes File Format
+
+The notes file (`*-notes.md`) should maintain a structured state section at the top:
+
+```markdown
+## Current State
+- Last completed: requirement N
+- Working on: requirement M
+- Blockers: none | description
+
+## Files Modified
+- path/to/file.ts (brief description of changes)
+
+## Session Log
+- [timestamp] Completed requirement N: description
+- [timestamp] Started requirement M
+```
+
+This format allows quick state reconstruction when starting a fresh session.
 
 ## Execution
 
