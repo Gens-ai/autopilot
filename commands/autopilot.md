@@ -5,11 +5,27 @@ Start an autonomous work session with progress tracking and learnings.
 ## Usage
 
 ```
-/autopilot <file.json>           # TDD task completion mode (default)
-/autopilot tests [target%]       # Test coverage mode
-/autopilot lint                  # Linting mode
-/autopilot entropy               # Code cleanup mode
+/autopilot <file.json> [max-iterations]    # TDD task completion mode (default)
+/autopilot tests [target%] [max-iterations] # Test coverage mode
+/autopilot lint [max-iterations]            # Linting mode
+/autopilot entropy [max-iterations]         # Code cleanup mode
 ```
+
+Default max-iterations is 20 for all modes. Pass a number to override.
+
+## Argument Parsing
+
+Parse `$ARGUMENTS` to extract:
+1. **Mode** - Determined by first argument (file path, `tests`, `lint`, or `entropy`)
+2. **Max iterations** - Optional trailing number (default: 20)
+3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode
+
+Examples:
+- `/autopilot tasks.json` → TDD mode, 20 iterations
+- `/autopilot tasks.json 30` → TDD mode, 30 iterations
+- `/autopilot tests 80` → Test mode, 80% target, 20 iterations
+- `/autopilot tests 80 15` → Test mode, 80% target, 15 iterations
+- `/autopilot lint 10` → Lint mode, 10 iterations
 
 ## Mode Detection
 
@@ -26,9 +42,9 @@ For file paths (`.json` or `.md` files). Uses Test-Driven Development.
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Complete requirements in TASKFILE using TDD. For each requirement: 1) Write failing test first, run tests to confirm it fails, commit test. 2) Write minimal implementation to pass the test, run tests to confirm it passes, commit implementation. 3) Run code-simplifier agent on modified files, then run typecheck tests lint to verify still green, commit refactor. Mark tdd.test.passes, tdd.implement.passes, tdd.refactor.passes as you complete each phase. Mark requirement passes true only when all three phases done. Before committing, run typecheck, tests, lint. Do NOT commit if any fail. STUCK HANDLING: If you fail the same task 3 iterations in a row, add stuck:true and blockedReason to the requirement, log the blocker to notes file, skip to next requirement. After each requirement, append progress to TASKFILE-notes.md. Log learnings to AGENTS.md. Output COMPLETE when all requirements pass or all remaining are stuck. --completion-promise COMPLETE --max-iterations 50`
+- args: `Complete requirements in TASKFILE using TDD. For each requirement: 1) Write failing test first, run tests to confirm it fails, commit test. 2) Write minimal implementation to pass the test, run tests to confirm it passes, commit implementation. 3) Run code-simplifier agent on modified files, then run typecheck tests lint to verify still green, commit refactor. Mark tdd.test.passes, tdd.implement.passes, tdd.refactor.passes as you complete each phase. Mark requirement passes true only when all three phases done. Before committing, run typecheck, tests, lint. Do NOT commit if any fail. STUCK HANDLING: If you fail the same task 3 iterations in a row, add stuck:true and blockedReason to the requirement, log the blocker to notes file, skip to next requirement. After each requirement, append progress to TASKFILE-notes.md. Log learnings to AGENTS.md. Output COMPLETE when all requirements pass or all remaining are stuck. --completion-promise COMPLETE --max-iterations MAXITER`
 
-Replace TASKFILE with the provided path.
+Replace TASKFILE with the provided file path. Replace MAXITER with the provided number (default: 20).
 
 ## Mode: Test Coverage
 
@@ -36,9 +52,9 @@ For `tests` or `tests <target%>` arguments.
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run test coverage report. Find uncovered lines. Write tests for the most critical uncovered code paths. Run coverage again to verify improvement. Target: TARGET% coverage minimum. STUCK HANDLING: If you cannot increase coverage after 3 consecutive iterations, log the blocker to notes file and output COMPLETE with current coverage. Append progress to docs/tasks/test-coverage-notes.md. Log learnings to AGENTS.md. Commit after each test file passes. Output COMPLETE when target coverage reached or stuck. --completion-promise COMPLETE --max-iterations 30`
+- args: `Run test coverage report. Find uncovered lines. Write tests for the most critical uncovered code paths. Run coverage again to verify improvement. Target: TARGET% coverage minimum. STUCK HANDLING: If you cannot increase coverage after 3 consecutive iterations, log the blocker to notes file and output COMPLETE with current coverage. Append progress to docs/tasks/test-coverage-notes.md. Log learnings to AGENTS.md. Commit after each test file passes. Output COMPLETE when target coverage reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
 
-Replace TARGET with the provided percentage (default: 80).
+Replace TARGET with the provided percentage (default: 80). Replace MAXITER with the provided number (default: 20).
 
 ## Mode: Linting
 
@@ -46,7 +62,9 @@ For `lint` argument.
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run linter. Fix ONE linting error at a time. Run lint again to verify the fix. Do not batch fixes. STUCK HANDLING: If you cannot fix a specific lint error after 3 attempts, log it to notes file with the error details and skip to next error. Append progress to docs/tasks/lint-fixes-notes.md. Log learnings to AGENTS.md. Commit after each fix passes lint. Output COMPLETE when no lint errors remain or only stuck errors remain. --completion-promise COMPLETE --max-iterations 50`
+- args: `Run linter. Fix ONE linting error at a time. Run lint again to verify the fix. Do not batch fixes. STUCK HANDLING: If you cannot fix a specific lint error after 3 attempts, log it to notes file with the error details and skip to next error. Append progress to docs/tasks/lint-fixes-notes.md. Log learnings to AGENTS.md. Commit after each fix passes lint. Output COMPLETE when no lint errors remain or only stuck errors remain. --completion-promise COMPLETE --max-iterations MAXITER`
+
+Replace MAXITER with the provided number (default: 20).
 
 ## Mode: Entropy
 
@@ -54,7 +72,9 @@ For `entropy` argument.
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Run code-simplifier agent on recently modified files. Then scan for code smells: unused exports, dead code, inconsistent patterns, duplicate code, overly complex functions. Fix ONE issue at a time. Run typecheck, tests, lint after each fix. Do NOT commit if any fail. STUCK HANDLING: If you cannot fix an issue after 3 attempts, log it to notes file and move on. Append what you changed to docs/tasks/entropy-cleanup-notes.md. Log learnings to AGENTS.md. Commit after each fix passes all checks. Output COMPLETE when no obvious code smells remain or only stuck issues remain. --completion-promise COMPLETE --max-iterations 30`
+- args: `Run code-simplifier agent on recently modified files. Then scan for code smells: unused exports, dead code, inconsistent patterns, duplicate code, overly complex functions. Fix ONE issue at a time. Run typecheck, tests, lint after each fix. Do NOT commit if any fail. STUCK HANDLING: If you cannot fix an issue after 3 attempts, log it to notes file and move on. Append what you changed to docs/tasks/entropy-cleanup-notes.md. Log learnings to AGENTS.md. Commit after each fix passes all checks. Output COMPLETE when no obvious code smells remain or only stuck issues remain. --completion-promise COMPLETE --max-iterations MAXITER`
+
+Replace MAXITER with the provided number (default: 20).
 
 ## Stuck Handling
 

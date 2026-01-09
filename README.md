@@ -147,21 +147,39 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 
 | Command | Description |
 |---------|-------------|
-| `/autopilot file.json` | TDD task completion (default) |
-| `/autopilot tests 80` | Increase test coverage to 80% |
-| `/autopilot lint` | Fix all lint errors one by one |
-| `/autopilot entropy` | Clean up code smells and dead code |
+| `/autopilot file.json [N]` | TDD task completion (default 20 iterations) |
+| `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 20 iterations) |
+| `/autopilot lint [N]` | Fix all lint errors one by one (default 20 iterations) |
+| `/autopilot entropy [N]` | Clean up code smells and dead code (default 20 iterations) |
+
+Pass an optional number `N` to set max iterations (e.g., `/autopilot tasks.json 30`).
 
 ## How It Works
 
-### Context Reset Between Iterations
+### Context Accumulation Between Iterations
 
-Ralph Loop clears context after each iteration. Claude sees progress by:
-- Reading the task file (checked items show what's done)
-- Reading the notes file (progress log)
-- Checking git history
+Ralph Loop runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
 
-This prevents context bloat on long-running tasks.
+Claude tracks progress through persistent state:
+- Reading the task file (completed items marked `passes: true`)
+- Reading the notes file (progress log with timestamps)
+- Checking git history (all commits from previous iterations)
+
+### Managing Context Limits
+
+To avoid hitting context limits on large tasks:
+
+1. **Use smaller iteration limits** - Default is 20 iterations. For complex tasks, you may want fewer.
+2. **Break large task files into batches** - 5-7 requirements per JSON file works well.
+3. **Restart on the same file** - When context gets heavy, end the session and run `/autopilot` again on the same task file. Claude reads the JSON and continues from where it left off.
+4. **Custom iterations** - Pass a number to override the default: `/autopilot tasks.json 10`
+
+Example workflow for large features:
+```bash
+/autopilot tasks.json 15    # Run 15 iterations
+# Session ends or gets heavy
+/autopilot tasks.json 15    # Fresh context, continues from completed tasks
+```
 
 ### Feedback Loops
 
