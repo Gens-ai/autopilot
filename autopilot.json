@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
+  "version": "1.0.0",
+  "project": {
+    "type": null,
+    "conventions": {
+      "testFilePattern": null,
+      "testDirectory": null,
+      "sourceDirectory": "commands"
+    }
+  },
+  "feedbackLoops": {
+    "typecheck": {
+      "command": null,
+      "enabled": false
+    },
+    "tests": {
+      "command": null,
+      "enabled": false
+    },
+    "lint": {
+      "command": null,
+      "enabled": false
+    }
+  },
+  "iterations": {
+    "tasks": 15,
+    "tests": 10,
+    "lint": 15,
+    "entropy": 10
+  },
+  "server": {
+    "type": "github",
+    "owner": "Gens-ai",
+    "repo": "autopilot",
+    "mcp": "github"
+  },
+  "codebase": {
+    "patterns": ["Claude Code commands", "JSON schema"],
+    "architecture": "Markdown prompt files symlinked to ~/.claude/commands/ for slash command access",
+    "dependencies": ["Ralph Loop plugin", "Claude Code CLI"]
+  }
+}
