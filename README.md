@@ -2,7 +2,7 @@
 
 A workflow for autonomous, test-driven development using Claude Code and the Ralph Loop plugin. Write a PRD, convert it to tasks, then let Claude implement everything using TDD while you sleep.
 
-[![Watch the intro video](https://cdn.loom.com/sessions/thumbnails/741f5db667c4485c9571dc6ec1a5a994-ec7f0d3f91180f38-full-play.gif)](https://www.loom.com/share/741f5db667c4485c9571dc6ec1a5a994)
+[Watch the intro video](https://www.loom.com/share/741f5db667c4485c9571dc6ec1a5a994)
 
 ## Credits
 
