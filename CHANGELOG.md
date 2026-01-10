@@ -5,6 +5,8 @@ All notable changes to Autopilot will be documented in this file.
 ## 2026-01-09
 
 ### Added
+- **run.sh** - Token-frugal wrapper script that runs Claude in a loop with fresh context per requirement
+- **--batch N flag** - Limit requirements completed per session for manual token management
 - **Resume support** - `--start-from <id>` flag to resume from specific requirement
 - **Rollback mechanism** - Git tags created before each requirement (`autopilot/req-{id}/start`), with `/autopilot rollback <id>` mode
 - **Completion summary report** - Shows completed vs stuck requirements, commits made, and files modified when autopilot finishes

@@ -12,6 +12,7 @@ Additional inspiration from this amazing video walkthrough by [Ryan Carson](http
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with an active subscription
 - [Ralph Loop Plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ralph-loop) installed
+- [jq](https://jqlang.github.io/jq/) - JSON processor (used by `run.sh` to check task status)
 - A project with feedback loops:
   - **Tests** - Any test runner (Jest, Vitest, pytest, go test, RSpec, etc.)
   - **Linter** - Any linter (ESLint, Ruff, golangci-lint, RuboCop, etc.)
@@ -87,13 +88,93 @@ docs/plans/my-feature-brainstorm.md
 
 The better your initial thinking, the better the output.
 
-### Pro Tip: Let it fly
+## Two Ways to Run Autopilot
 
-If you really want to sleep or go for a walk outside while autopilot builds your features, you'll need to tell Claude to skip permission prompts. Use this carefully. You might want to spin up a VM to run this in if you want to be optimally careful. Start your Claude session with;
+There are two ways to execute autopilot, with different tradeoffs:
+
+| Method | Context | Best For |
+|--------|---------|----------|
+| `run.sh` | Fresh each requirement | Large task files, overnight runs |
+| `/autopilot` | Accumulates in session | Small tasks, interactive use |
+
+### Option 1: `run.sh` (Recommended for Autonomy)
+
+The **wrapper script** runs Claude in a loop, starting a **fresh session for each requirement**. This clears context between requirements, keeping token usage efficient.
+
+```bash
+./run.sh docs/tasks/prds/feature.json
+```
+
+**How it works:**
+1. Checks the task JSON for incomplete requirements
+2. Invokes `claude --dangerously-skip-permissions "/autopilot <file> --batch 1"`
+3. Claude completes one requirement, then exits
+4. Script checks for remaining requirements
+5. If more remain, starts a new Claude session (fresh context)
+6. Repeats until all requirements are complete or stuck
+
+**Why fresh context matters:**
+- Claude Code's Ralph Loop accumulates context within a session
+- After 5-10 requirements, context can exceed limits or degrade quality
+- Fresh sessions mean Claude starts clean each time
+- State is preserved in the task JSON and notes file, not in memory
+
+**Options:**
+```bash
+./run.sh tasks.json              # 1 requirement per session (most frugal)
+./run.sh tasks.json --batch 3    # 3 requirements per session (faster)
+./run.sh tasks.json --delay 5    # 5 second pause between sessions
+./run.sh tasks.json --dry-run    # Preview without executing
+```
+
+**When to use:**
+- Task files with 5+ requirements
+- Running overnight or unattended
+- When you want maximum token efficiency
+- Large codebases where context matters
+
+### Option 2: `/autopilot` Slash Command
+
+The **slash command** runs within a single Claude session. Context accumulates between iterations, which can be useful for complex multi-step work where Claude needs to remember previous actions.
 
 ```bash
 claude --dangerously-skip-permissions
+/autopilot docs/tasks/prds/feature.json
 ```
+
+**How it works:**
+1. Invokes Ralph Loop with your task file
+2. Claude works through requirements sequentially
+3. Context accumulates (Claude remembers previous work)
+4. Continues until max iterations or all requirements done
+
+**Options:**
+```bash
+/autopilot tasks.json                  # Use default iterations (15)
+/autopilot tasks.json 30               # Override to 30 iterations
+/autopilot tasks.json --batch 1        # Complete 1 requirement then stop
+/autopilot tasks.json --start-from 5   # Resume from requirement 5
+```
+
+**When to use:**
+- Small task files (1-4 requirements)
+- Interactive sessions where you're watching
+- When requirements build on each other and shared context helps
+- Quick fixes or single features
+
+### Which Should I Use?
+
+**Use `run.sh` when:**
+- You have many requirements to complete
+- You're stepping away and want it to run autonomously
+- Token efficiency matters
+- You've hit context limits with `/autopilot` before
+
+**Use `/autopilot` when:**
+- You have a small, focused task
+- You're actively monitoring progress
+- Requirements are interdependent and benefit from shared context
+- You want to use `--start-from` to resume mid-file
 
 ### Step 0: Initialize Project (One-Time)
 
@@ -157,7 +238,7 @@ Converts the PRD to a JSON file with structured requirements. Each requirement h
 /sandbox
 ```
 
-Enables [sandbox mode](https://docs.anthropic.com/en/docs/claude-code/security#sandbox-mode) so autopilot can run without permission prompts. Your system files are protected.
+Enables [sandbox mode](https://docs.anthropic.com/en/docs/claude-code/security#sandbox-mode). This is optional but advised for autonomous runs - it restricts file and network access so Claude can execute commands without permission prompts while your system stays protected.
 
 ### Step 4: Run Autopilot
 
@@ -189,14 +270,18 @@ Pass an optional number `N` to override the default iterations from `autopilot.j
 
 ## How It Works
 
-### Context Accumulation Between Iterations
+### Context and State Management
 
-Ralph Loop runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
+When using `/autopilot` directly, Ralph Loop runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
 
-Claude tracks progress through persistent state:
+**To avoid context limits, use `run.sh`** which starts fresh sessions for each requirement. See [Two Ways to Run Autopilot](#two-ways-to-run-autopilot) above.
+
+Regardless of which method you use, Claude tracks progress through persistent state:
 - Reading the task file (completed items marked `passes: true`)
 - Reading the notes file (progress log with timestamps)
 - Checking git history (all commits from previous iterations)
+
+This persistent state allows seamless resumption across sessions.
 
 ### Token Frugality
 
@@ -210,17 +295,24 @@ Autopilot is optimized for token efficiency:
 
 ### Managing Context Limits
 
-To avoid hitting context limits on large tasks:
+**Recommended: Use `run.sh`** for automatic context management. It handles everything for you.
 
-1. **Break large task files into batches** - 5-7 requirements per JSON file works well.
-2. **Restart on the same file** - When context gets heavy, end the session and run `/autopilot` again on the same task file. Claude reads the JSON and notes file, then continues from where it left off.
-3. **Custom iterations** - Pass a number to override the default: `/autopilot tasks.json 10`
+If using `/autopilot` directly:
 
-Example workflow for large features:
+1. **Use `--batch 1`** - Complete one requirement per session: `/autopilot tasks.json --batch 1`
+2. **Break large task files** - 5-7 requirements per JSON file works well
+3. **Restart frequently** - End the session and run `/autopilot` again. Claude reads the JSON and notes file, then continues from where it left off.
+
+Example manual workflow:
 ```bash
-/autopilot tasks.json       # Run with default 15 iterations
-# Session ends or gets heavy
-/autopilot tasks.json       # Fresh context, continues from completed tasks
+/autopilot tasks.json --batch 1   # Complete 1 requirement
+# Session ends
+/autopilot tasks.json --batch 1   # Fresh context, next requirement
+```
+
+Or let `run.sh` handle this automatically:
+```bash
+./run.sh tasks.json         # Handles everything, fresh context each requirement
 ```
 
 ### Feedback Loops
@@ -306,6 +398,7 @@ autopilot/                    # This repo (source of truth)
 │   └── notes-user-auth.md   # Example progress notes
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for validation
+├── run.sh             # Token-frugal wrapper script
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
 └── README.md

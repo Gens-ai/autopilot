@@ -1,0 +1,10 @@
+{
+  "name": "mixed-stuck",
+  "description": "Test fixture with mix of complete, stuck, and invalid",
+  "requirements": [
+    {"id": "1", "description": "Completed task", "passes": true},
+    {"id": "2", "description": "Stuck task", "passes": false, "stuck": true, "blockedReason": "Database connection issue"},
+    {"id": "3", "description": "Invalid test task", "passes": false, "invalidTest": true, "invalidTestReason": "Test passed before implementation"},
+    {"id": "4", "description": "Pending task", "passes": false}
+  ]
+}

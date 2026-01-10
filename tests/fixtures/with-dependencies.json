@@ -1,0 +1,10 @@
+{
+  "name": "with-dependencies",
+  "description": "Test fixture with requirement dependencies",
+  "requirements": [
+    {"id": "1", "description": "Base task", "passes": true},
+    {"id": "2", "description": "Depends on 1", "passes": false, "dependsOn": ["1"]},
+    {"id": "3", "description": "Depends on 1 and 2", "passes": false, "dependsOn": ["1", "2"]},
+    {"id": "4", "description": "Independent task", "passes": false}
+  ]
+}

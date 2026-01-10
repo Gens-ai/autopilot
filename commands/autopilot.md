@@ -77,15 +77,18 @@ Parse `$ARGUMENTS` to extract:
 2. **Max iterations** - Optional trailing number (defaults from autopilot.json)
 3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode
 4. **--start-from ID** - Optional flag to resume from a specific requirement ID (TDD mode only)
+5. **--batch N** - Complete N requirements then stop (TDD mode only, default: all)
 
 Examples:
 - `/autopilot init` → Run initialization wizard
 - `/autopilot init --force` → Run initialization with auto-detected values
-- `/autopilot tasks.json` → TDD mode, iterations from config (default: 50)
+- `/autopilot tasks.json` → TDD mode, iterations from config (default: 15)
 - `/autopilot tasks.json 30` → TDD mode, 30 iterations
 - `/autopilot tasks.json --start-from 5` → TDD mode, skip requirements before ID 5
 - `/autopilot tasks.json --start-from 5 30` → TDD mode, start from 5, 30 iterations
-- `/autopilot tests 80` → Test mode, 80% target, iterations from config (default: 30)
+- `/autopilot tasks.json --batch 1` → TDD mode, complete 1 requirement then stop
+- `/autopilot tasks.json --batch 3` → TDD mode, complete up to 3 requirements then stop
+- `/autopilot tests 80` → Test mode, 80% target, iterations from config (default: 10)
 - `/autopilot tests 80 15` → Test mode, 80% target, 15 iterations
 - `/autopilot lint 10` → Lint mode, 10 iterations
 
@@ -118,16 +121,19 @@ Read `autopilot.json` to get:
 - `MAXITER` default from `iterations.tasks` (usually 15)
 
 Check for `--start-from ID` flag. If present, extract the START_ID.
+Check for `--batch N` flag. If present, extract the BATCH_COUNT (default: 0 means unlimited).
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Complete requirements in TASKFILE using TDD. Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. When done generate TASKFILE-summary.md with results and commits and files modified. Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies. --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Complete requirements in TASKFILE using TDD. BATCH_INSTRUCTION Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. COMPLETION_INSTRUCTION --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
 - TASKFILE with the provided file path
 - MAXITER with the provided number or default from `iterations.tasks`
 - TYPECHECK_CMD, TEST_CMD, LINT_CMD with commands from autopilot.json (omit if disabled)
 - START_FROM_INSTRUCTION with `Skip requirements with id less than START_ID.` if --start-from was specified, otherwise remove it
+- BATCH_INSTRUCTION with `Stop after completing BATCH_COUNT requirements and output COMPLETE.` if --batch was specified, otherwise remove it
+- COMPLETION_INSTRUCTION with `Output COMPLETE after completing BATCH_COUNT requirements.` if --batch was specified, otherwise `Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies.`
 
 ## Mode: Rollback
 

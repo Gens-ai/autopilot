@@ -1,0 +1,9 @@
+{
+  "name": "incomplete",
+  "description": "Test fixture with incomplete requirements",
+  "requirements": [
+    {"id": "1", "description": "First task", "passes": true},
+    {"id": "2", "description": "Second task", "passes": false},
+    {"id": "3", "description": "Third task", "passes": false}
+  ]
+}

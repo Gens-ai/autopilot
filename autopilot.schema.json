@@ -23,7 +23,7 @@
         "type": {
           "type": ["string", "null"],
           "description": "Project type/language",
-          "enum": ["nodejs", "python", "go", "rust", "ruby", "java", "typescript", "php", "dotnet", null]
+          "enum": ["nodejs", "python", "go", "rust", "ruby", "java", "typescript", "php", "dotnet", "other", null]
         },
         "conventions": {
           "type": "object",
