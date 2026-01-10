@@ -12,7 +12,7 @@ Additional inspiration from this amazing video walkthrough by [Ryan Carson](http
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with an active subscription
 - [Ralph Loop Plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ralph-loop) installed
-- [jq](https://jqlang.github.io/jq/) - JSON processor (used by `run.sh` to check task status)
+- [jq](https://jqlang.github.io/jq/) - JSON processor (used by `autopilot` (bash) to check task status)
 - A project with feedback loops:
   - **Tests** - Any test runner (Jest, Vitest, pytest, go test, RSpec, etc.)
   - **Linter** - Any linter (ESLint, Ruff, golangci-lint, RuboCop, etc.)
@@ -33,13 +33,19 @@ cd autopilot
 ./install.sh
 ```
 
-This creates symlinks from the repo to `~/.claude/`:
-- `~/.claude/commands/prd.md` → repo
-- `~/.claude/commands/tasks.md` → repo
-- `~/.claude/commands/autopilot.md` → repo
+This creates symlinks:
+- `~/.claude/commands/prd.md` → repo (slash command)
+- `~/.claude/commands/tasks.md` → repo (slash command)
+- `~/.claude/commands/autopilot.md` → repo (slash command)
 - `~/.claude/AGENTS.md` → repo
+- `~/.local/bin/autopilot` → repo/`autopilot` (terminal command)
 
 Updates to the repo are automatically available (just `git pull`).
+
+**Note:** Ensure `~/.local/bin` is in your PATH:
+```bash
+export PATH="$HOME/.local/bin:$PATH"  # Add to ~/.bashrc or ~/.zshrc
+```
 
 ### 3. Install Claude plugins
 
@@ -94,15 +100,15 @@ There are two ways to execute autopilot, with different tradeoffs:
 
 | Method | Context | Best For |
 |--------|---------|----------|
-| `run.sh` | Fresh each requirement | Large task files, overnight runs |
+| `autopilot` (bash) | Fresh each requirement | Large task files, overnight runs |
 | `/autopilot` | Accumulates in session | Small tasks, interactive use |
 
-### Option 1: `run.sh` (Recommended for Autonomy)
+### Option 1: `autopilot` bash command (Recommended)
 
 The **wrapper script** runs Claude in a loop, starting a **fresh session for each requirement**. This clears context between requirements, keeping token usage efficient.
 
 ```bash
-./run.sh docs/tasks/prds/feature.json
+autopilot docs/tasks/prds/feature.json
 ```
 
 **How it works:**
@@ -121,10 +127,10 @@ The **wrapper script** runs Claude in a loop, starting a **fresh session for eac
 
 **Options:**
 ```bash
-./run.sh tasks.json              # 1 requirement per session (most frugal)
-./run.sh tasks.json --batch 3    # 3 requirements per session (faster)
-./run.sh tasks.json --delay 5    # 5 second pause between sessions
-./run.sh tasks.json --dry-run    # Preview without executing
+autopilot tasks.json              # 1 requirement per session (most frugal)
+autopilot tasks.json --batch 3    # 3 requirements per session (faster)
+autopilot tasks.json --delay 5    # 5 second pause between sessions
+autopilot tasks.json --dry-run    # Preview without executing
 ```
 
 **When to use:**
@@ -164,7 +170,7 @@ claude --dangerously-skip-permissions
 
 ### Which Should I Use?
 
-**Use `run.sh` when:**
+**Use `autopilot` (bash) when:**
 - You have many requirements to complete
 - You're stepping away and want it to run autonomously
 - Token efficiency matters
@@ -274,7 +280,7 @@ Pass an optional number `N` to override the default iterations from `autopilot.j
 
 When using `/autopilot` directly, Ralph Loop runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
 
-**To avoid context limits, use `run.sh`** which starts fresh sessions for each requirement. See [Two Ways to Run Autopilot](#two-ways-to-run-autopilot) above.
+**To avoid context limits, use `autopilot` (bash)** which starts fresh sessions for each requirement. See [Two Ways to Run Autopilot](#two-ways-to-run-autopilot) above.
 
 Regardless of which method you use, Claude tracks progress through persistent state:
 - Reading the task file (completed items marked `passes: true`)
@@ -295,7 +301,7 @@ Autopilot is optimized for token efficiency:
 
 ### Managing Context Limits
 
-**Recommended: Use `run.sh`** for automatic context management. It handles everything for you.
+**Recommended: Use `autopilot` (bash)** for automatic context management. It handles everything for you.
 
 If using `/autopilot` directly:
 
@@ -310,9 +316,9 @@ Example manual workflow:
 /autopilot tasks.json --batch 1   # Fresh context, next requirement
 ```
 
-Or let `run.sh` handle this automatically:
+Or let `autopilot` (bash) handle this automatically:
 ```bash
-./run.sh tasks.json         # Handles everything, fresh context each requirement
+autopilot tasks.json         # Handles everything, fresh context each requirement
 ```
 
 ### Feedback Loops
@@ -398,7 +404,7 @@ autopilot/                    # This repo (source of truth)
 │   └── notes-user-auth.md   # Example progress notes
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for validation
-├── run.sh             # Token-frugal wrapper script
+├── `autopilot`             # Token-frugal wrapper script
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
 └── README.md
