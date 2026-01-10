@@ -780,6 +780,35 @@ This structured format enables:
 - Quick identification of recently modified files
 - Better context when resuming interrupted sessions
 
+## Troubleshooting
+
+### Tests can't connect to database (localhost:5432)
+
+**Symptom:** Tests fail with "Can't reach database server at localhost:5432" even though Docker container is running and healthy.
+
+**Cause:** Claude Code's sandbox blocks Docker port forwarding. The container works fine internally, but connections from the host to forwarded ports are blocked.
+
+**Solution:**
+1. Set `sandbox: false` in `autopilot.json` for the tests feedback loop:
+   ```json
+   "tests": {
+     "enabled": true,
+     "command": "npm test",
+     "sandbox": false
+   }
+   ```
+2. For ad-hoc test runs outside autopilot, use `dangerouslyDisableSandbox: true` in Bash tool calls.
+
+**Don't waste time debugging Docker networking** - if you see this error, it's almost certainly the sandbox. Try disabling it first.
+
+### Tests pass before implementation (Invalid Test)
+
+**Symptom:** In TDD Red phase, the new test passes immediately without any implementation.
+
+**Cause:** The test isn't actually testing new behavior - either the feature already exists, or the test has a bug.
+
+**Solution:** Mark the requirement as `invalidTest: true` with `invalidTestReason` and skip to next requirement. Do NOT proceed with implementation.
+
 ## Execution
 
 **IMPORTANT: Avoid shell metacharacters in args.** The args string is passed through bash which interprets certain characters as shell syntax. To prevent errors:
