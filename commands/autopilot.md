@@ -6,6 +6,7 @@ Start an autonomous work session with progress tracking and learnings.
 
 ```
 /autopilot init                             # Initialize project configuration
+/autopilot stop                             # Stop run.sh loop gracefully
 /autopilot <file.json> [max-iterations]    # TDD task completion mode (default)
 /autopilot tests [target%] [max-iterations] # Test coverage mode
 /autopilot lint [max-iterations]            # Linting mode
@@ -97,18 +98,34 @@ Examples:
 Based on the argument ($ARGUMENTS), determine the mode:
 
 1. **If argument is `init`** → Run `/autopilot init` command (invoke the init.md command)
-2. **If argument ends with `.json` or `.md`** → TDD task completion mode
-3. **If argument starts with `tests`** → Test coverage mode
-4. **If argument starts with `lint`** → Linting mode
-5. **If argument starts with `entropy`** → Entropy/cleanup mode
-6. **If argument starts with `rollback`** → Rollback mode
-7. **If argument is `metrics`** → Metrics report mode
+2. **If argument is `stop`** → Stop mode (signal run.sh to exit)
+3. **If argument ends with `.json` or `.md`** → TDD task completion mode
+4. **If argument starts with `tests`** → Test coverage mode
+5. **If argument starts with `lint`** → Linting mode
+6. **If argument starts with `entropy`** → Entropy/cleanup mode
+7. **If argument starts with `rollback`** → Rollback mode
+8. **If argument is `metrics`** → Metrics report mode
 
 ## Mode: Init
 
 For `init` argument, invoke the `/autopilot init` command to run the initialization wizard.
 
 Pass any additional arguments (like `--force`, `--skip-validation`) to the init command.
+
+## Mode: Stop
+
+For `stop` argument. Signals the run.sh loop to exit gracefully after the current session.
+
+**Do not check for autopilot.json** - this mode should work regardless of configuration.
+
+Steps:
+1. Create the sentinel file: `touch .autopilot-stop`
+2. Tell the user:
+   ```
+   Autopilot stop signal sent. The run.sh loop will exit after the current session completes.
+
+   If you need to stop immediately, press Ctrl+C in the terminal running run.sh.
+   ```
 
 ## Mode: TDD Task Completion (default)
 

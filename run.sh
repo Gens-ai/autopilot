@@ -9,7 +9,7 @@
 #   ./run.sh <taskfile.json> [options]
 #
 # Options:
-#   --batch N       Complete N requirements per session (default: 1)
+#   --batch N       Complete N requirements per session (default: all)
 #   --delay N       Seconds to wait between sessions (default: 2)
 #   --dry-run       Show what would be done without executing
 #   --help          Show this help message
@@ -29,10 +29,13 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-BATCH_SIZE=1
+BATCH_SIZE=""
 DELAY=2
 DRY_RUN=false
 TASKFILE=""
+
+# Stop file - checked each iteration to allow graceful shutdown
+STOP_FILE=".autopilot-stop"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -55,7 +58,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: ./run.sh <taskfile.json> [options]"
             echo ""
             echo "Options:"
-            echo "  --batch N       Complete N requirements per session (default: 1)"
+            echo "  --batch N       Complete N requirements per session (default: all)"
             echo "  --delay N       Seconds to wait between sessions (default: 2)"
             echo "  --dry-run       Show what would be done without executing"
             echo "  --help          Show this help message"
@@ -96,6 +99,24 @@ if [[ ! -f "$TASKFILE" ]]; then
     echo -e "${RED}Error: Task file not found: $TASKFILE${NC}"
     exit 1
 fi
+
+# Clean up any existing stop file from previous runs
+if [[ -f "$STOP_FILE" ]]; then
+    rm "$STOP_FILE"
+    echo -e "${YELLOW}Removed stale stop file${NC}"
+fi
+
+# Function to check for stop signal
+check_stop() {
+    if [[ -f "$STOP_FILE" ]]; then
+        echo ""
+        echo -e "${YELLOW}Stop signal received (found $STOP_FILE)${NC}"
+        echo -e "${YELLOW}Stopping autopilot loop...${NC}"
+        rm "$STOP_FILE"
+        return 0
+    fi
+    return 1
+}
 
 # Function to count incomplete requirements
 count_incomplete() {
@@ -151,6 +172,12 @@ echo ""
 SESSION=0
 
 while true; do
+    # Check for stop signal
+    if check_stop; then
+        print_status
+        break
+    fi
+
     # Check how many requirements remain
     INCOMPLETE=$(count_incomplete)
 
@@ -166,11 +193,17 @@ while true; do
     echo -e "${BLUE}=== Session $SESSION ===${NC}"
     print_status
 
+    # Build the autopilot command
+    AUTOPILOT_CMD="/autopilot $TASKFILE"
+    if [[ -n "$BATCH_SIZE" ]]; then
+        AUTOPILOT_CMD="$AUTOPILOT_CMD --batch $BATCH_SIZE"
+    fi
+
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
-        echo "  claude --dangerously-skip-permissions \"/autopilot $TASKFILE --batch $BATCH_SIZE\""
+        echo "  claude --dangerously-skip-permissions \"$AUTOPILOT_CMD\""
         echo ""
-        echo -e "${YELLOW}Simulating completion of $BATCH_SIZE requirement(s)...${NC}"
+        echo -e "${YELLOW}Simulating completion of ${BATCH_SIZE:-all} requirement(s)...${NC}"
         # In dry run, we'd need to manually exit
         if [[ $SESSION -ge 3 ]]; then
             echo -e "${YELLOW}[DRY RUN] Stopping after 3 simulated sessions${NC}"
@@ -182,19 +215,28 @@ while true; do
 
         # Run Claude with autopilot command
         # Using --dangerously-skip-permissions for autonomous operation
-        if ! claude --dangerously-skip-permissions "/autopilot $TASKFILE --batch $BATCH_SIZE"; then
+        if ! claude --dangerously-skip-permissions "$AUTOPILOT_CMD"; then
             echo -e "${YELLOW}Session ended with non-zero exit code${NC}"
             # Continue anyway - might just be normal completion
         fi
 
         echo ""
         echo -e "${GREEN}Session $SESSION complete${NC}"
+
+        # Check for stop signal after session
+        if check_stop; then
+            print_status
+            break
+        fi
     fi
 
-    # Brief pause between sessions
-    if [[ "$INCOMPLETE" -gt "$BATCH_SIZE" ]]; then
+    # Brief pause between sessions (only if batching)
+    if [[ -n "$BATCH_SIZE" && "$INCOMPLETE" -gt "$BATCH_SIZE" ]]; then
         echo -e "${BLUE}Waiting ${DELAY}s before next session...${NC}"
         sleep "$DELAY"
+    elif [[ -z "$BATCH_SIZE" ]]; then
+        # No batching - single session completes all, so exit loop
+        break
     fi
 done
 
