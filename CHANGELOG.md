@@ -18,8 +18,10 @@ All notable changes to Autopilot will be documented in this file.
   - 99999999: No placeholders or TODOs
   - 999999999: Single source of truth
 - **Guardrails in AGENTS.md** - Added Guardrails section with search-first, no-placeholders, and single-source-of-truth rules
+- **Acceptance criteria for requirements** - New `acceptance` array defines specific, testable outcomes that become test cases in TDD Red phase
 
 ### Changed
+- **TDD Red phase** - Now requires tests covering ALL acceptance criteria before proceeding to Green phase
 - **Code-aware TDD descriptions** - Test and implementation descriptions now reference specific files, patterns, and utilities discovered during analysis
 - **Example tasks file** - `examples/tasks-user-auth.json` updated with `codeAnalysis` examples showing the new structure
 - **"Don't assume not implemented" guardrail** - Built into `/tasks` Phase 1 and `autopilot.md` guardrails, ensuring Claude searches before implementing

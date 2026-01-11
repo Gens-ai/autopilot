@@ -184,10 +184,15 @@
               }
             }
           },
+          "acceptance": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Specific, testable outcomes that define success. Each criterion becomes a test case in TDD Red phase. Example: 'Password reset email sent within 5 seconds', 'Reset token expires after 1 hour'"
+          },
           "verification": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Steps to verify this requirement is complete"
+            "description": "Steps to verify this requirement is complete (human-oriented checklist)"
           },
           "passes": {
             "type": "boolean",

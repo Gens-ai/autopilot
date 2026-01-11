@@ -576,14 +576,32 @@ This avoids running code-simplifier on untouched files and keeps refactoring foc
 
 ## TDD Rules (Task Completion Mode)
 
-1. **Red**: Write test first, run tests, VERIFY the new test FAILS
-   - If the test passes before implementation, the test is invalid - it is not testing new behavior
+1. **Red**: Write tests covering ALL acceptance criteria, run tests, VERIFY they FAIL
+   - Read the `acceptance` array - each criterion becomes a test case
+   - Write tests that will fail until the implementation is complete
+   - If any test passes before implementation, the test is invalid
    - Mark the requirement as `invalidTest: true` with reason and skip to next
-   - Only proceed to Green phase after confirming test failure
-2. **Green**: Write minimal code to make test pass
+   - Only proceed to Green phase after confirming ALL tests fail
+2. **Green**: Write minimal code to make ALL tests pass
+   - Implement just enough to satisfy each acceptance criterion
+   - Do not over-engineer or add unrequested features
 3. **Refactor**: Run code-simplifier, then verify tests still green
 4. **Never skip**: All three phases required for each requirement
 5. **One at a time**: Complete full TDD cycle before next requirement
+
+### Acceptance-Driven Testing
+
+The `acceptance` array defines what "done" means. Each criterion must have a corresponding test:
+
+```json
+"acceptance": [
+  "Reset email sent within 5 seconds",    // → test: should send email within timeout
+  "Token expires after 1 hour",           // → test: should reject expired tokens
+  "Used token cannot be reused"           // → test: should reject already-used tokens
+]
+```
+
+Before marking `tdd.test.passes: true`, verify you have tests covering ALL acceptance criteria.
 
 ### Requirement Dependencies
 

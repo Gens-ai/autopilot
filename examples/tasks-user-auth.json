@@ -43,9 +43,15 @@
           "create": ["src/models/User.ts", "src/models/__tests__/User.test.ts"]
         }
       },
+      "acceptance": [
+        "User can be created with valid email and password",
+        "Invalid email format rejected with clear error",
+        "Password stored as bcrypt hash, never plaintext",
+        "Duplicate email rejected with conflict error"
+      ],
       "tdd": {
         "test": {
-          "description": "Create User.test.ts following BaseModel.test.ts patterns: test model creation, email validation with Zod, password hashing integration",
+          "description": "Create User.test.ts covering all acceptance criteria: valid creation, email validation, password hashing, duplicate rejection",
           "file": "src/models/__tests__/User.test.ts",
           "passes": false
         },
@@ -94,9 +100,16 @@
           ]
         }
       },
+      "acceptance": [
+        "POST /auth/register returns 201 with JWT on valid input",
+        "Invalid email returns 400 with validation error",
+        "Weak password returns 400 with strength requirements",
+        "Duplicate email returns 409 conflict",
+        "JWT contains user ID and email claims"
+      ],
       "tdd": {
         "test": {
-          "description": "Create auth.test.ts following health.test.ts patterns: test POST /auth/register creates user, returns JWT, validates input",
+          "description": "Create auth.test.ts covering all acceptance criteria: successful registration, validation errors, conflicts, JWT structure",
           "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
@@ -144,9 +157,16 @@
           "create": []
         }
       },
+      "acceptance": [
+        "POST /auth/login returns 200 with JWT for valid credentials",
+        "Invalid password returns 401 unauthorized",
+        "Non-existent email returns 401 (no user enumeration)",
+        "JWT expires after configured duration",
+        "Response format matches registration endpoint"
+      ],
       "tdd": {
         "test": {
-          "description": "Add login tests to existing auth.test.ts: test POST /auth/login authenticates valid credentials, rejects invalid, returns JWT",
+          "description": "Add login tests covering all acceptance criteria: valid login, wrong password, unknown email, JWT expiry",
           "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
@@ -193,9 +213,17 @@
           "create": ["src/models/PasswordResetToken.ts"]
         }
       },
+      "acceptance": [
+        "POST /auth/forgot-password sends email within 5 seconds",
+        "Reset token expires after 1 hour",
+        "POST /auth/reset-password with valid token updates password",
+        "Used token cannot be reused",
+        "Invalid token returns 400 error",
+        "Non-existent email returns 200 (no user enumeration)"
+      ],
       "tdd": {
         "test": {
-          "description": "Add password reset tests to auth.test.ts: test forgot-password sends email, reset-password validates token and updates password",
+          "description": "Add password reset tests covering all acceptance criteria: email sending, token expiry, password update, token reuse prevention",
           "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
@@ -246,9 +274,16 @@
           ]
         }
       },
+      "acceptance": [
+        "GET /auth/google redirects to Google OAuth consent screen",
+        "GET /auth/google/callback creates new user if email not exists",
+        "GET /auth/google/callback links to existing user if email exists",
+        "Callback returns JWT matching email/password format",
+        "Missing GOOGLE_CLIENT_ID fails gracefully with clear error"
+      ],
       "tdd": {
         "test": {
-          "description": "Create e2e/auth-oauth.spec.ts: test Google OAuth redirect URL, callback handling (mocked), user creation/linking",
+          "description": "Create e2e/auth-oauth.spec.ts covering all acceptance criteria: redirect URL, new user creation, existing user linking, JWT format",
           "file": "e2e/auth-oauth.spec.ts",
           "passes": false
         },

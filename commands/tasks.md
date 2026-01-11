@@ -123,9 +123,15 @@ Generate the JSON task file with enriched, code-aware information.
           "create": ["src/auth/PasswordResetToken.ts"]
         }
       },
+      "acceptance": [
+        "Reset email sent within 5 seconds of request",
+        "Reset token expires after 1 hour",
+        "Used token cannot be reused",
+        "New password must meet strength requirements"
+      ],
       "tdd": {
         "test": {
-          "description": "Add password reset tests to UserService.test.ts following existing test patterns",
+          "description": "Add password reset tests to UserService.test.ts covering all acceptance criteria",
           "file": "src/auth/__tests__/UserService.test.ts",
           "passes": false
         },
@@ -157,12 +163,13 @@ Generate the JSON task file with enriched, code-aware information.
 | `category` | Yes | `functional`, `ui`, or `integration` |
 | `description` | Yes | Clear description of the requirement |
 | `codeAnalysis` | Yes | Findings from Phase 0-1 (see below) |
+| `acceptance` | Yes | Specific, testable outcomes that become test cases |
 | `dependsOn` | No | Array of requirement IDs that must complete first |
 | `testType` | No | `unit`, `integration`, or `e2e` |
 | `issue` | No | GitHub issue reference (e.g., `"#123"`) |
 | `package` | No | Monorepo package name if applicable |
 | `tdd` | Yes | Test, implement, refactor phases |
-| `verification` | Yes | Steps to verify completion |
+| `verification` | Yes | Steps to verify completion (human checklist) |
 | `passes` | Yes | Set to `false` initially |
 
 ### codeAnalysis Object
@@ -175,6 +182,41 @@ Generate the JSON task file with enriched, code-aware information.
 | `patterns` | Patterns to follow based on existing code |
 | `targetFiles.modify` | Specific files to modify |
 | `targetFiles.create` | New files to create |
+
+### Acceptance Criteria
+
+Each requirement must have an `acceptance` array with specific, testable outcomes. These criteria:
+- Define what "done" means for this requirement
+- Become test cases in the TDD Red phase
+- Are verifiable through automated tests
+
+**Deriving acceptance criteria from PRD:**
+
+1. Look at the requirement description and ask: "How do I know this works?"
+2. Identify measurable outcomes (timeouts, error messages, data changes)
+3. Include edge cases and error conditions
+4. Each criterion should be one test case
+
+**Good acceptance criteria:**
+```json
+"acceptance": [
+  "Reset email sent within 5 seconds of request",
+  "Reset token expires after 1 hour",
+  "Used token cannot be reused",
+  "Invalid email returns 404 without revealing user existence"
+]
+```
+
+**Bad acceptance criteria:**
+```json
+"acceptance": [
+  "Password reset works",
+  "Emails are sent",
+  "It handles errors"
+]
+```
+
+The good criteria are specific, measurable, and directly translate to test assertions.
 
 ### Writing Code-Aware TDD Descriptions
 

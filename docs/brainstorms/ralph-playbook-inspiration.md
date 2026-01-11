@@ -16,6 +16,7 @@ The following suggestions have been implemented by enhancing `/tasks` with codeb
 | 4 | Gap Analysis Before Implementation | `/tasks` Phase 0-1 now searches codebase, identifies existing code, and categorizes each requirement as `create`/`extend`/`modify`/`already-done`. |
 | 5 | "Don't Assume Not Implemented" | Built into `/tasks` Phase 1 with explicit "Critical Rule: Don't assume something isn't implemented. Always search first." |
 | 6 | Guardrail Numbering Convention | `autopilot.md` restructured with Phase 0 (pre-flight), Phase 1 (execution), Phase 99999+ (critical guardrails). |
+| 18 | Acceptance-Driven Test Requirements | Added `acceptance` array to requirements. TDD Red phase writes tests covering all acceptance criteria. |
 | 19 | Graceful Plan Regeneration | `/tasks --refresh` flag re-analyzes incomplete requirements while preserving completed ones. |
 | 23 | Explicit Phase Numbering | `/tasks` and `autopilot.md` now use explicit phase numbering (0a, 0b, 0c for orientation; 99999+ for guardrails). |
 | 24 | Single Source of Truth | Added as guardrail 999999999 in `autopilot.md` and in `AGENTS.md` Guardrails section. |
@@ -355,23 +356,25 @@ See "Implemented" section above. The `/tasks` command now includes:
 
 ---
 
-## 18. Acceptance-Driven Test Requirements
+## 18. ~~Acceptance-Driven Test Requirements~~ (Implemented)
 
-**Description:** Derive test requirements explicitly from acceptance criteria during planning.
+**Status:** Implemented in `tasks.schema.json`, `tasks.md`, and `autopilot.md`.
 
-**Purpose:** Ralph emphasizes explicit "what to verify" (outcomes) in task descriptions. This prevents placeholder implementations.
+Added `acceptance` array to requirements:
+- Each criterion is a specific, testable outcome
+- Criteria become test cases in TDD Red phase
+- Tests must cover ALL acceptance criteria before marking `tdd.test.passes: true`
 
-**Details:**
-- Current TDD phases have descriptions but not explicit verification criteria
-- Ralph derives tests from acceptance criteria in specs
-- Each task includes: what to implement + how to verify success
-- Explicit criteria maintain determinism while allowing flexible implementation
+Example:
+```json
+"acceptance": [
+  "Reset email sent within 5 seconds",
+  "Token expires after 1 hour",
+  "Used token cannot be reused"
+]
+```
 
-**Implementation:**
-- Add `acceptance` array to requirement schema
-- Each acceptance criterion maps to verification step
-- Update TDD Red phase to write tests covering acceptance criteria
-- Add acceptance criteria validation before marking passes: true
+Updated `autopilot.md` TDD Rules section with "Acceptance-Driven Testing" subsection explaining how criteria map to tests.
 
 ---
 
@@ -502,8 +505,7 @@ Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 | Priority | Suggestions | Status |
 |----------|-------------|--------|
-| **Implemented** | 1, 4, 5, 6, 19, 23, 24, 25 | Done via `/tasks` enhancements and guardrails |
-| **High** | 18 | Acceptance-driven test requirements (remaining) |
+| **Implemented** | 1, 4, 5, 6, 18, 19, 23, 24, 25 | All high-priority items complete |
 | **Medium** | 2, 7, 8, 10, 16, 22 | Workflow enhancements |
 | **Low** | 3, 9, 11-15, 17, 20, 21 | Nice-to-have features |
 
@@ -513,8 +515,9 @@ Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 1. ~~Implement gap analysis in /tasks~~ Done
 2. ~~Apply phase numbering and guardrails to autopilot.md~~ Done
-3. Test the enhanced `/tasks` command on a real project
-4. Consider implementing #18 (acceptance-driven test requirements)
+3. ~~Implement acceptance-driven test requirements~~ Done
+4. Test the enhanced `/tasks` command on a real project
+5. Consider implementing medium-priority items (2, 7, 8, 10, 16, 22)
 
 ---
 
