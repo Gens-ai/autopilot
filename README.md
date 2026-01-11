@@ -141,6 +141,12 @@ autopilot tasks.json --dry-run    # Preview without executing
 - When you want maximum token efficiency
 - Large codebases where context matters
 
+**Stopping autopilot:**
+
+To gracefully stop a running session, run `/autopilot stop` from another Claude Code session. This reads the PID from `.autopilot.pid` and sends `SIGUSR1` to terminate the script cleanly.
+
+Alternatively, press `Ctrl+C` in the terminal running `autopilot`.
+
 ### Option 2: `/autopilot` Slash Command
 
 The **slash command** runs within a single Claude session. Context accumulates between iterations, which can be useful for complex multi-step work where Claude needs to remember previous actions.
@@ -221,7 +227,14 @@ Claude asks 3-5 clarifying questions, then generates a markdown PRD at `docs/tas
 /tasks docs/tasks/prds/user-auth.md
 ```
 
-Converts the PRD to a JSON file with structured requirements. Each requirement has TDD phases:
+Before generating tasks, `/tasks` **analyzes your codebase** to understand what exists:
+
+1. **Phase 0: Codebase Analysis** - Searches for related files, patterns, and utilities
+2. **Phase 1: Gap Analysis** - For each requirement, determines if it's `create`, `extend`, `modify`, or `already-done`
+3. **Phase 2: Task Generation** - Creates enriched JSON with code-aware context
+4. **Phase 3: Dependency Inference** - Auto-detects dependencies between requirements
+
+Each requirement includes a `codeAnalysis` object with specific file targets:
 
 ```json
 {
@@ -229,9 +242,19 @@ Converts the PRD to a JSON file with structured requirements. Each requirement h
     {
       "id": "1",
       "description": "User can register with email/password",
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": ["src/controllers/AuthController.ts"],
+        "relatedTests": ["src/__tests__/auth.test.ts"],
+        "patterns": ["Controllers extend BaseController"],
+        "targetFiles": {
+          "modify": ["src/controllers/AuthController.ts"],
+          "create": ["src/models/User.ts"]
+        }
+      },
       "tdd": {
-        "test": { "passes": false },
-        "implement": { "passes": false },
+        "test": { "description": "Add registration tests to auth.test.ts following existing patterns", "passes": false },
+        "implement": { "description": "Extend AuthController with register endpoint, use existing validation middleware", "passes": false },
         "refactor": { "passes": false }
       },
       "passes": false
@@ -239,6 +262,14 @@ Converts the PRD to a JSON file with structured requirements. Each requirement h
   ]
 }
 ```
+
+**Refresh mode:** If implementation goes off-track, re-analyze with `--refresh`:
+
+```bash
+/tasks docs/tasks/prds/user-auth.json --refresh
+```
+
+This preserves completed requirements while re-running gap analysis on incomplete ones.
 
 ### Step 3: Enable Sandbox
 
@@ -405,7 +436,8 @@ autopilot/                    # This repo (source of truth)
 │   ├── tasks-user-auth.json # Example task file with TDD phases
 │   └── notes-user-auth.md   # Example progress notes
 ├── autopilot.template.json  # Template for autopilot.json
-├── autopilot.schema.json    # JSON schema for validation
+├── autopilot.schema.json    # JSON schema for autopilot.json
+├── tasks.schema.json        # JSON schema for task files
 ├── `autopilot`             # Token-frugal wrapper script
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/

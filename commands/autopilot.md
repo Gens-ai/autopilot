@@ -114,17 +114,26 @@ Pass any additional arguments (like `--force`, `--skip-validation`) to the init 
 
 ## Mode: Stop
 
-For `stop` argument. Signals the run.sh loop to exit gracefully after the current session.
+For `stop` argument. Signals the run.sh loop to exit gracefully.
 
 **Do not check for autopilot.json** - this mode should work regardless of configuration.
 
 Steps:
-1. Create the sentinel file: `touch .autopilot-stop`
-2. Tell the user:
+1. Check if `.autopilot.pid` exists
+2. If it does not exist, tell the user:
    ```
-   Autopilot stop signal sent. The run.sh loop will exit after the current session completes.
-
-   If you need to stop immediately, press Ctrl+C in the terminal running run.sh.
+   No autopilot session is running.
+   ```
+3. If it exists, read the PID from the file
+4. Check if the process is running: `kill -0 $PID 2>/dev/null`
+5. If process is not running, remove the stale PID file and tell the user:
+   ```
+   No autopilot session is running (removed stale PID file).
+   ```
+6. If process is running, send SIGUSR1: `kill -USR1 $PID`
+7. Tell the user:
+   ```
+   Stop signal sent to autopilot (PID $PID). The session will terminate shortly.
    ```
 
 ## Mode: TDD Task Completion (default)

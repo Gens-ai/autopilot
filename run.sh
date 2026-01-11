@@ -34,8 +34,16 @@ DELAY=2
 DRY_RUN=false
 TASKFILE=""
 
-# Stop file - checked each iteration to allow graceful shutdown
-STOP_FILE=".autopilot-stop"
+# PID file for signal-based shutdown
+PID_FILE=".autopilot.pid"
+STOP_REQUESTED=false
+
+# Signal handler for graceful shutdown
+handle_stop() {
+    STOP_REQUESTED=true
+}
+
+trap handle_stop SIGUSR1
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -100,19 +108,28 @@ if [[ ! -f "$TASKFILE" ]]; then
     exit 1
 fi
 
-# Clean up any existing stop file from previous runs
-if [[ -f "$STOP_FILE" ]]; then
-    rm "$STOP_FILE"
-    echo -e "${YELLOW}Removed stale stop file${NC}"
+# Check if another instance is running
+if [[ -f "$PID_FILE" ]]; then
+    OLD_PID=$(cat "$PID_FILE")
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+        echo -e "${RED}Error: Another autopilot instance is running (PID $OLD_PID)${NC}"
+        echo -e "${YELLOW}Use '/autopilot stop' to stop it, or 'kill -USR1 $OLD_PID'${NC}"
+        exit 1
+    else
+        echo -e "${YELLOW}Removed stale PID file${NC}"
+    fi
 fi
+
+# Write our PID and ensure cleanup on exit
+echo $$ > "$PID_FILE"
+trap 'rm -f "$PID_FILE"' EXIT
 
 # Function to check for stop signal
 check_stop() {
-    if [[ -f "$STOP_FILE" ]]; then
+    if [[ "$STOP_REQUESTED" == "true" ]]; then
         echo ""
-        echo -e "${YELLOW}Stop signal received (found $STOP_FILE)${NC}"
+        echo -e "${YELLOW}Stop signal received${NC}"
         echo -e "${YELLOW}Stopping autopilot loop...${NC}"
-        rm "$STOP_FILE"
         return 0
     fi
     return 1
@@ -213,21 +230,30 @@ while true; do
         echo -e "${BLUE}Starting Claude Code session...${NC}"
         echo ""
 
-        # Run Claude with autopilot command
-        # Using --dangerously-skip-permissions for autonomous operation
-        if ! claude --dangerously-skip-permissions "$AUTOPILOT_CMD"; then
-            echo -e "${YELLOW}Session ended with non-zero exit code${NC}"
-            # Continue anyway - might just be normal completion
-        fi
+        # Run Claude in background so we can monitor for stop signal
+        claude --dangerously-skip-permissions "$AUTOPILOT_CMD" &
+        CLAUDE_PID=$!
+
+        # Monitor for stop signal while Claude is running
+        while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+            if [[ "$STOP_REQUESTED" == "true" ]]; then
+                echo ""
+                echo -e "${YELLOW}Stop signal received - terminating session...${NC}"
+                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                wait "$CLAUDE_PID" 2>/dev/null || true
+                print_status
+                echo ""
+                echo -e "${GREEN}run.sh stopped${NC}"
+                exit 0
+            fi
+            sleep 1
+        done
+
+        # Wait for Claude to finish and get exit code
+        wait "$CLAUDE_PID" || true
 
         echo ""
         echo -e "${GREEN}Session $SESSION complete${NC}"
-
-        # Check for stop signal after session
-        if check_stop; then
-            print_status
-            break
-        fi
     fi
 
     # Brief pause between sessions (only if batching)
