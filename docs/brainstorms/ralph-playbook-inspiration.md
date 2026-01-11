@@ -16,9 +16,11 @@ The following suggestions have been implemented by enhancing `/tasks` with codeb
 | 4 | Gap Analysis Before Implementation | `/tasks` Phase 0-1 now searches codebase, identifies existing code, and categorizes each requirement as `create`/`extend`/`modify`/`already-done`. |
 | 5 | "Don't Assume Not Implemented" | Built into `/tasks` Phase 1 with explicit "Critical Rule: Don't assume something isn't implemented. Always search first." |
 | 6 | Guardrail Numbering Convention | `autopilot.md` restructured with Phase 0 (pre-flight), Phase 1 (execution), Phase 99999+ (critical guardrails). |
+| 7 | Subagent Parallelization Strategy | Added Subagent Parallelization section to `CLAUDE.md` with table of parallel vs sequential tasks. |
 | 16 | Operational AGENTS.md Discipline | Trimmed AGENTS.md from 112 to 63 lines. Removed Learnings section (progress tracker). Added note to use notes file for learnings. |
 | 18 | Acceptance-Driven Test Requirements | Added `acceptance` array to requirements. TDD Red phase writes tests covering all acceptance criteria. |
 | 19 | Graceful Plan Regeneration | `/tasks --refresh` flag re-analyzes incomplete requirements while preserving completed ones. |
+| 22 | Prompt Language Patterns | Added Language Patterns section to `CLAUDE.md` with proven phrasings. |
 | 23 | Explicit Phase Numbering | `/tasks` and `autopilot.md` now use explicit phase numbering (0a, 0b, 0c for orientation; 99999+ for guardrails). |
 | 24 | Single Source of Truth | Added as guardrail 999999999 in `autopilot.md` and in `AGENTS.md` Guardrails section. |
 | 25 | No Placeholders | Added as guardrail 99999999 in `autopilot.md` and in `AGENTS.md` Guardrails section. |
@@ -133,23 +135,14 @@ See "Implemented" section above. The `/tasks` command now includes:
 
 ---
 
-## 7. Subagent Parallelization Strategy
+## 7. ~~Subagent Parallelization Strategy~~ (Implemented)
 
-**Description:** Explicitly document when to use parallel subagents vs sequential execution.
+**Status:** Implemented in `CLAUDE.md`.
 
-**Purpose:** Ralph uses up to 500 parallel subagents for reading/searching but limits to 1 for build/tests. This optimizes context usage while maintaining backpressure.
-
-**Details:**
-- Parallel subagents for: file reading, grep searches, spec analysis, gap analysis
-- Sequential (single) subagent for: tests, builds, commits
-- Reasoning: backpressure requires single point of control
-- Parallel reads don't accumulate context in main agent
-- Build results must feed back to main agent for decisions
-
-**Implementation:**
-- Add guidance to AGENTS.md: "Use parallel subagents for exploration, single subagent for execution"
-- Update autopilot.md to explicitly spawn parallel subagents during orientation phase
-- Document expected subagent counts per phase
+Added Subagent Parallelization section documenting:
+- Parallel for: file reading, grep/search, codebase analysis
+- Sequential for: tests, builds, commits
+- Rule of thumb: reading/exploring → parallel, writing/executing → sequential
 
 ---
 
@@ -494,8 +487,8 @@ Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 | Priority | Suggestions | Status |
 |----------|-------------|--------|
-| **Implemented** | 1, 4, 5, 6, 16, 18, 19, 22, 23, 24, 25 | High/medium-priority items complete |
-| **Medium** | 2, 7, 8, 10 | Workflow enhancements |
+| **Implemented** | 1, 4, 5, 6, 7, 16, 18, 19, 22, 23, 24, 25 | High/medium-priority items complete |
+| **Medium** | 2, 8, 10 | Workflow enhancements |
 | **Low** | 3, 9, 11-15, 17, 20, 21 | Nice-to-have features |
 
 ---

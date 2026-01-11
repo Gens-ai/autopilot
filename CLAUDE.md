@@ -43,6 +43,44 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 **Code Simplifier**: The `code-simplifier` agent (via Task tool) runs during TDD refactor phase to improve clarity while preserving functionality.
 
+**Analytics**: Per-session analytics files track iterations, errors, and waste patterns. Stored in `docs/tasks/analytics/`. Use `/autopilot analyze` to generate improvement suggestions.
+
+**Thrashing Detection**: If the same error appears N times consecutively (default: 3), the task is immediately marked stuck. This prevents wasting tokens on unsolvable problems.
+
+## Analytics System
+
+Analytics help identify token waste and improvement opportunities across autopilot sessions.
+
+**Files**:
+- `analytics.schema.json` - Schema for session analytics files
+- `commands/analyze.md` - Post-session analysis command
+- `docs/tasks/analytics/*.json` - Per-session analytics (in user projects)
+
+**Configuration** in `autopilot.json`:
+```json
+{
+  "analytics": {
+    "enabled": true,
+    "directory": "docs/tasks/analytics",
+    "thrashingThreshold": 3
+  }
+}
+```
+
+**Workflow**:
+1. Autopilot creates analytics file at session start
+2. Logs errors, iterations, and timing per requirement
+3. Detects thrashing (same error N times) and aborts early
+4. After session, run `/autopilot analyze` for suggestions
+5. Apply relevant learnings to AGENTS.md or autopilot.json
+6. Delete analytics files after review
+
+**Waste Patterns Detected**:
+- Thrashing (same error repeated)
+- Environment issues (sandbox, connections)
+- Missing context (duplicate implementations)
+- Invalid tests (pass before implementation)
+
 ## Notes File Format
 
 Notes files maintain state between sessions:
@@ -69,6 +107,7 @@ Notes files maintain state between sessions:
 | tests | `/autopilot tests [%]` | Increase test coverage to target |
 | lint | `/autopilot lint` | Fix lint errors one by one |
 | entropy | `/autopilot entropy` | Clean up code smells and dead code |
+| analyze | `/autopilot analyze` | Generate suggestions from session analytics |
 
 ## Development
 
@@ -96,6 +135,21 @@ Certain phrasings improve Claude's behavior. Use these patterns in prompts:
 | "using parallel subagents" | (nothing) | Triggers parallelization for exploration |
 | "don't assume not implemented" | (nothing) | Triggers search-before-implement behavior |
 | "capture the why" | (nothing) | Encourages documenting rationale in commits |
+
+## Subagent Parallelization
+
+Use parallel subagents for exploration, sequential for execution.
+
+| Task Type | Strategy | Why |
+|-----------|----------|-----|
+| File reading | Parallel | No side effects, can read many files at once |
+| Grep/search | Parallel | Independent searches, faster exploration |
+| Codebase analysis | Parallel | Study multiple areas simultaneously |
+| Tests | Sequential | Need to see results before deciding next step |
+| Builds | Sequential | Must complete before validating |
+| Commits | Sequential | Require backpressure and verification |
+
+**Rule of thumb:** Reading/exploring → parallel subagents. Writing/executing → sequential with feedback.
 
 ## JSON Schema
 
