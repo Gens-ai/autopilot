@@ -13,7 +13,7 @@ echo "Installing Autopilot commands..."
 mkdir -p ~/.claude/commands
 
 # Symlink command files
-for cmd in prd.md tasks.md autopilot.md init.md; do
+for cmd in prd.md tasks.md autopilot.md init.md analyze.md; do
     if [ -L ~/.claude/commands/$cmd ]; then
         rm ~/.claude/commands/$cmd
     elif [ -f ~/.claude/commands/$cmd ]; then
@@ -49,10 +49,11 @@ echo ""
 echo "Installation complete!"
 echo ""
 echo "Commands available:"
-echo "  /prd            - Create a PRD (inside Claude)"
-echo "  /tasks          - Convert PRD to tasks (inside Claude)"
-echo "  /autopilot      - Run TDD execution (inside Claude)"
-echo "  /autopilot init - Initialize project configuration (inside Claude)"
+echo "  /prd               - Create a PRD (inside Claude)"
+echo "  /tasks             - Convert PRD to tasks (inside Claude)"
+echo "  /autopilot         - Run TDD execution (inside Claude)"
+echo "  /autopilot init    - Initialize project configuration (inside Claude)"
+echo "  /autopilot analyze - Analyze session analytics for improvements (inside Claude)"
 echo ""
 echo "  autopilot       - Token-frugal wrapper (from terminal)"
 echo ""

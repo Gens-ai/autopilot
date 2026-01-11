@@ -2,6 +2,33 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-11
+
+### Added
+- **Session Analytics** - Per-session analytics files track iterations, errors, timing, and waste patterns
+  - Stored in `docs/tasks/analytics/` with timestamped filenames
+  - Schema defined in `analytics.schema.json`
+  - Example file: `examples/analytics-user-auth-session.json`
+- **Thrashing Detection** - Automatically detects when the same error repeats consecutively
+  - Configurable threshold via `analytics.thrashingThreshold` (default: 3)
+  - Immediately marks task as stuck when thrashing detected
+  - Logs pattern to analytics for post-session analysis
+- **`/autopilot analyze` command** - Post-session analysis of analytics files
+  - Calculates efficiency score (productive vs wasted iterations)
+  - Identifies waste patterns (thrashing, environment issues, missing context)
+  - Generates suggested AGENTS.md entries and autopilot.json changes
+  - Supports `--last`, `--since Nd`, `--task <name>`, `--clear` flags
+- **Analytics configuration** in `autopilot.json`:
+  - `analytics.enabled` - Toggle analytics (default: true)
+  - `analytics.directory` - Where to store files (default: `docs/tasks/analytics`)
+  - `analytics.thrashingThreshold` - Consecutive errors before abort (default: 3)
+  - `analytics.trackToolCalls` - Track tool usage per requirement
+  - `analytics.trackFileAccess` - Track files read/written per requirement
+
+### Changed
+- **TDD mode** now logs errors, iterations, and timing to analytics file
+- **Stuck handling** distinguishes between thrashing (same error) and regular stuck (different approaches failed)
+
 ## 2026-01-10
 
 ### Changed

@@ -1,0 +1,261 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/analytics.schema.json",
+  "title": "Autopilot Session Analytics",
+  "description": "Per-session analytics for tracking token efficiency and identifying waste patterns",
+  "type": "object",
+  "required": ["sessionId", "startedAt", "taskFile", "mode", "requirements"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Unique identifier for this session (UUID or timestamp-based)"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp when session started"
+    },
+    "completedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO8601 timestamp when session completed (null if interrupted)"
+    },
+    "taskFile": {
+      "type": "string",
+      "description": "Path to the task JSON file being processed"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["tasks", "tests", "lint", "entropy"],
+      "description": "Autopilot mode for this session"
+    },
+    "maxIterations": {
+      "type": "integer",
+      "description": "Maximum iterations configured for this session"
+    },
+    "actualIterations": {
+      "type": "integer",
+      "description": "Actual iterations used before completion or abort"
+    },
+    "abortReason": {
+      "type": ["string", "null"],
+      "description": "Reason for early abort if session didn't complete normally"
+    },
+    "requirements": {
+      "type": "array",
+      "description": "Per-requirement analytics",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Requirement ID from task file"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the requirement"
+          },
+          "startedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "completed", "stuck", "invalid", "skipped"],
+            "description": "Final status of this requirement"
+          },
+          "iterations": {
+            "type": "integer",
+            "description": "Number of iterations spent on this requirement"
+          },
+          "phases": {
+            "type": "object",
+            "description": "TDD phase breakdown",
+            "properties": {
+              "red": {
+                "type": "object",
+                "properties": {
+                  "attempts": { "type": "integer" },
+                  "durationMs": { "type": "integer" },
+                  "passed": { "type": "boolean" }
+                }
+              },
+              "green": {
+                "type": "object",
+                "properties": {
+                  "attempts": { "type": "integer" },
+                  "durationMs": { "type": "integer" },
+                  "passed": { "type": "boolean" }
+                }
+              },
+              "refactor": {
+                "type": "object",
+                "properties": {
+                  "attempts": { "type": "integer" },
+                  "durationMs": { "type": "integer" },
+                  "passed": { "type": "boolean" }
+                }
+              }
+            }
+          },
+          "errors": {
+            "type": "array",
+            "description": "Errors encountered during this requirement",
+            "items": {
+              "type": "object",
+              "required": ["attempt", "type", "message"],
+              "properties": {
+                "attempt": {
+                  "type": "integer",
+                  "description": "Which attempt this error occurred on"
+                },
+                "phase": {
+                  "type": "string",
+                  "enum": ["red", "green", "refactor", "feedback"],
+                  "description": "TDD phase when error occurred"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Error category (test_failure, connection_error, type_error, lint_error, etc.)"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Error message (truncated if very long)"
+                },
+                "command": {
+                  "type": ["string", "null"],
+                  "description": "Command that produced this error"
+                },
+                "resolution": {
+                  "type": ["string", "null"],
+                  "description": "How the error was resolved (if it was)"
+                }
+              }
+            }
+          },
+          "thrashing": {
+            "type": ["object", "null"],
+            "description": "Thrashing detection data if applicable",
+            "properties": {
+              "detected": {
+                "type": "boolean",
+                "description": "Whether thrashing was detected"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "The repeated error pattern"
+              },
+              "consecutiveCount": {
+                "type": "integer",
+                "description": "Number of consecutive identical errors"
+              },
+              "aborted": {
+                "type": "boolean",
+                "description": "Whether the requirement was aborted due to thrashing"
+              }
+            }
+          },
+          "filesRead": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Files read during this requirement"
+          },
+          "filesWritten": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Files created or modified during this requirement"
+          },
+          "toolCalls": {
+            "type": "object",
+            "description": "Count of tool calls by type",
+            "additionalProperties": { "type": "integer" }
+          },
+          "stuckReason": {
+            "type": ["string", "null"],
+            "description": "Reason if requirement was marked stuck"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Session summary statistics",
+      "properties": {
+        "completed": {
+          "type": "integer",
+          "description": "Number of requirements completed"
+        },
+        "stuck": {
+          "type": "integer",
+          "description": "Number of requirements marked stuck"
+        },
+        "invalid": {
+          "type": "integer",
+          "description": "Number of requirements with invalid tests"
+        },
+        "skipped": {
+          "type": "integer",
+          "description": "Number of requirements skipped (dependencies, already done)"
+        },
+        "totalIterations": {
+          "type": "integer",
+          "description": "Total iterations used"
+        },
+        "estimatedWastedIterations": {
+          "type": "integer",
+          "description": "Iterations spent on thrashing or stuck tasks"
+        },
+        "efficiencyScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Ratio of productive iterations to total iterations"
+        },
+        "durationMs": {
+          "type": "integer",
+          "description": "Total session duration in milliseconds"
+        },
+        "patterns": {
+          "type": "array",
+          "description": "Detected waste patterns",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["thrashing", "environment_issue", "missing_context", "invalid_test", "dependency_blocked"],
+                "description": "Category of waste pattern"
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the pattern"
+              },
+              "occurrences": {
+                "type": "integer",
+                "description": "How many times this pattern occurred"
+              },
+              "affectedRequirements": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Requirement IDs affected by this pattern"
+              },
+              "suggestedFix": {
+                "type": ["string", "null"],
+                "description": "Suggested fix for this pattern"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

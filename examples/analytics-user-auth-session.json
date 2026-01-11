@@ -1,0 +1,108 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/analytics.schema.json",
+  "sessionId": "2026-01-10-user-auth-1",
+  "startedAt": "2026-01-10T10:00:00Z",
+  "completedAt": "2026-01-10T10:45:00Z",
+  "taskFile": "docs/tasks/prds/user-auth.json",
+  "mode": "tasks",
+  "maxIterations": 15,
+  "actualIterations": 16,
+  "requirements": [
+    {
+      "id": "1",
+      "description": "Create User model with email, password hash, and verification status",
+      "startedAt": "2026-01-10T10:00:00Z",
+      "completedAt": "2026-01-10T10:12:00Z",
+      "status": "completed",
+      "iterations": 4,
+      "phases": {
+        "red": { "attempts": 1, "durationMs": 45000, "passed": true },
+        "green": { "attempts": 2, "durationMs": 120000, "passed": true },
+        "refactor": { "attempts": 1, "durationMs": 60000, "passed": true }
+      },
+      "errors": [
+        {
+          "attempt": 1,
+          "phase": "green",
+          "type": "test_failure",
+          "message": "Expected User.email to be validated",
+          "command": "npm test",
+          "resolution": "Added Zod schema validation"
+        }
+      ],
+      "thrashing": null,
+      "filesRead": ["src/models/BaseModel.ts", "src/db/schema.ts", "src/lib/crypto.ts"],
+      "filesWritten": ["src/models/User.ts", "src/models/__tests__/User.test.ts"],
+      "toolCalls": { "Read": 4, "Edit": 6, "Bash": 8, "Grep": 2 },
+      "stuckReason": null
+    },
+    {
+      "id": "2",
+      "description": "Implement user registration endpoint",
+      "startedAt": "2026-01-10T10:12:00Z",
+      "completedAt": "2026-01-10T10:35:00Z",
+      "status": "stuck",
+      "iterations": 12,
+      "phases": {
+        "red": { "attempts": 1, "durationMs": 60000, "passed": true },
+        "green": { "attempts": 11, "durationMs": 1200000, "passed": false },
+        "refactor": { "attempts": 0, "durationMs": 0, "passed": false }
+      },
+      "errors": [
+        {
+          "attempt": 1,
+          "phase": "green",
+          "type": "connection_error",
+          "message": "Error: connect ECONNREFUSED 127.0.0.1:5432",
+          "command": "npm test",
+          "resolution": null
+        },
+        {
+          "attempt": 2,
+          "phase": "green",
+          "type": "connection_error",
+          "message": "Error: connect ECONNREFUSED 127.0.0.1:5432",
+          "command": "npm test",
+          "resolution": null
+        },
+        {
+          "attempt": 3,
+          "phase": "green",
+          "type": "connection_error",
+          "message": "Error: connect ECONNREFUSED 127.0.0.1:5432",
+          "command": "npm test",
+          "resolution": null
+        }
+      ],
+      "thrashing": {
+        "detected": true,
+        "pattern": "ECONNREFUSED 127.0.0.1:5432",
+        "consecutiveCount": 3,
+        "aborted": true
+      },
+      "filesRead": ["src/routes/index.ts", "src/controllers/BaseController.ts"],
+      "filesWritten": ["src/controllers/AuthController.ts", "src/routes/__tests__/auth.test.ts"],
+      "toolCalls": { "Read": 8, "Edit": 4, "Bash": 15, "Grep": 3 },
+      "stuckReason": "Thrashing detected: ECONNREFUSED 127.0.0.1:5432 - sandbox blocking database port"
+    }
+  ],
+  "summary": {
+    "completed": 1,
+    "stuck": 1,
+    "invalid": 0,
+    "skipped": 3,
+    "totalIterations": 16,
+    "estimatedWastedIterations": 11,
+    "efficiencyScore": 0.31,
+    "durationMs": 2700000,
+    "patterns": [
+      {
+        "type": "environment_issue",
+        "description": "Database connection refused due to sandbox blocking port 5432",
+        "occurrences": 12,
+        "affectedRequirements": ["2"],
+        "suggestedFix": "Set sandbox: false for tests feedback loop in autopilot.json"
+      }
+    ]
+  }
+}

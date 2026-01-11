@@ -17,6 +17,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 - `tasks.md` - Parses PRD, outputs JSON with TDD tracking fields
 - `autopilot.md` - Main entry point, dispatches to modes based on arguments
 - `init.md` - Project configuration wizard, creates `autopilot.json`
+- `analyze.md` - Post-session analytics analysis, generates improvement suggestions
 
 **Supporting Files**:
 - `autopilot.schema.json` - Validates `autopilot.json` structure
@@ -115,7 +116,7 @@ This repo has no build system or tests - it's pure markdown documentation. Chang
 
 **Installation**: `./install.sh` creates symlinks to `~/.claude/commands/` and `~/.claude/AGENTS.md`
 
-**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init}.md ~/.claude/AGENTS.md`
+**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md`
 
 ## Examples
 
@@ -124,6 +125,7 @@ The `examples/` directory contains reference files:
 - `prd-user-auth.md` - Example PRD document
 - `tasks-user-auth.json` - Example task file with TDD tracking
 - `notes-user-auth.md` - Example progress notes file
+- `analytics-user-auth-session.json` - Example session analytics with thrashing detection
 
 ## Language Patterns
 

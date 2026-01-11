@@ -114,6 +114,43 @@ Based on the argument ($ARGUMENTS), determine the mode:
 6. **If argument starts with `entropy`** → Entropy/cleanup mode
 7. **If argument starts with `rollback`** → Rollback mode
 8. **If argument is `metrics`** → Metrics report mode
+9. **If argument is `analyze`** → Session analytics mode
+
+### 0d. Analytics Initialization
+
+If analytics are enabled in `autopilot.json` (default: true), initialize session analytics before running any mode that uses iterations (tasks, tests, lint, entropy).
+
+**Steps:**
+
+1. **Read analytics config** from `autopilot.json`:
+   - `analytics.enabled` (default: true)
+   - `analytics.directory` (default: `docs/tasks/analytics`)
+   - `analytics.thrashingThreshold` (default: 3)
+
+2. **Create analytics directory** if it doesn't exist
+
+3. **Generate session file name**: `YYYY-MM-DD-TASKNAME-N.json`
+   - TASKNAME: derived from task file name or mode (e.g., `user-auth` from `user-auth.json`, or `lint-session`)
+   - N: incrementing number if multiple sessions same day (1, 2, 3...)
+   - Example: `2026-01-10-user-auth-1.json`
+
+4. **Initialize analytics file** with base structure:
+   ```json
+   {
+     "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/analytics.schema.json",
+     "sessionId": "<timestamp-based-id>",
+     "startedAt": "<ISO8601>",
+     "completedAt": null,
+     "taskFile": "<path or mode name>",
+     "mode": "<tasks|tests|lint|entropy>",
+     "maxIterations": <N>,
+     "actualIterations": 0,
+     "requirements": [],
+     "summary": null
+   }
+   ```
+
+5. **Store path** as `ANALYTICS_FILE` for use during execution
 
 ---
 
@@ -164,9 +201,11 @@ Check for `--batch N` flag. If present, extract the BATCH_COUNT (default: 0 mean
 
 Use the Skill tool with:
 - skill: `ralph-loop:ralph-loop`
-- args: `Complete requirements in TASKFILE using TDD. BATCH_INSTRUCTION Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. COMPLETION_INSTRUCTION --completion-promise COMPLETE --max-iterations MAXITER`
+- args: `Complete requirements in TASKFILE using TDD. BATCH_INSTRUCTION Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. ANALYTICS_INSTRUCTION For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. THRASHING_INSTRUCTION If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. COMPLETION_INSTRUCTION --completion-promise COMPLETE --max-iterations MAXITER`
 
 Replace:
+- ANALYTICS_INSTRUCTION with `If analytics enabled then update ANALYTICS_FILE with requirement start time and increment actualIterations after each iteration and log errors with type and message to the requirement errors array and track filesRead and filesWritten.` if analytics are enabled, otherwise remove it
+- THRASHING_INSTRUCTION with `Track consecutive identical errors. If the same error pattern appears THRASHING_THRESHOLD times in a row then immediately mark stuck with blockedReason containing Thrashing detected and the error pattern and set thrashing.detected true in analytics.` where THRASHING_THRESHOLD comes from autopilot.json analytics.thrashingThreshold (default: 3)
 - TASKFILE with the provided file path
 - MAXITER with the provided number or default from `iterations.tasks`
 - TYPECHECK_CMD, TEST_CMD, LINT_CMD with commands from autopilot.json (omit if disabled)
@@ -187,6 +226,129 @@ Steps:
 4. Update the task JSON to reset the requirement and any subsequent requirements to `passes: false`
 
 **Warning**: This is a destructive operation. All commits after the tag will be lost.
+
+## Mode: Analyze
+
+For `analyze` argument. Reads session analytics files and generates improvement suggestions.
+
+Usage:
+```
+/autopilot analyze                    # Analyze all sessions in analytics directory
+/autopilot analyze --last             # Analyze only the most recent session
+/autopilot analyze --since 7d         # Analyze sessions from last 7 days
+/autopilot analyze --task user-auth   # Analyze sessions for specific task
+```
+
+### Analysis Steps
+
+1. **Read analytics directory** from `autopilot.json` (default: `docs/tasks/analytics/`)
+
+2. **Load session files** matching the filter criteria
+
+3. **Aggregate data** across sessions:
+   - Total iterations used
+   - Estimated wasted iterations (thrashing + stuck)
+   - Success rate (completed / total attempted)
+   - Common error patterns
+   - Frequently stuck requirements
+
+4. **Identify waste patterns**:
+   - **Thrashing**: Same error appearing 3+ times consecutively
+   - **Environment issues**: Connection refused, permission denied, sandbox blocks
+   - **Missing context**: Errors that codebase search could have prevented
+   - **Invalid tests**: Tests that passed before implementation
+
+5. **Generate suggestions** (output to console, not auto-applied):
+
+```markdown
+# Autopilot Analysis Report
+
+Generated: 2026-01-10T15:30:00Z
+Sessions analyzed: 5
+Date range: 2026-01-03 to 2026-01-10
+
+## Efficiency Score: 72%
+
+Based on 145 iterations across 5 sessions:
+- Productive iterations: 104 (72%)
+- Wasted iterations: 41 (28%)
+
+## Waste Patterns Detected
+
+### 1. Environment/Sandbox Issues (25 iterations wasted)
+
+**Pattern**: `ECONNREFUSED localhost:5432` appeared 25 times across 3 sessions
+
+**Suggested AGENTS.md entry**:
+```
+### Gotchas
+- 2026-01-10: Database tests require sandbox: false. If you see ECONNREFUSED localhost:5432, check autopilot.json feedbackLoops.tests.sandbox setting before retrying.
+```
+
+**Suggested autopilot.json change**:
+```json
+"feedbackLoops": {
+  "tests": {
+    "sandbox": false
+  }
+}
+```
+
+### 2. Thrashing on Test Assertions (12 iterations wasted)
+
+**Pattern**: Same assertion failure in `auth.test.ts` repeated 12 times
+
+**Suggested AGENTS.md entry**:
+```
+### Testing
+- 2026-01-10: When test assertions fail repeatedly, re-read the requirement and acceptance criteria. The test may be checking the wrong thing.
+```
+
+### 3. Missing Codebase Context (4 iterations wasted)
+
+**Pattern**: Created duplicate utility function that already existed in `src/lib/utils.ts`
+
+**Suggested AGENTS.md entry**:
+```
+### Patterns
+- 2026-01-10: Always search for existing utilities before creating new ones. Check src/lib/ directory first.
+```
+
+## Per-Requirement Breakdown
+
+| Requirement | Iterations | Status | Waste |
+|-------------|------------|--------|-------|
+| 1: User model | 4 | completed | 0 |
+| 2: Registration | 15 | stuck | 12 (thrashing) |
+| 3: Login | 6 | completed | 1 |
+| 4: Password reset | 8 | completed | 2 |
+
+## Recommendations
+
+1. **High Impact**: Add `sandbox: false` to tests feedback loop (saves ~25 iterations/week)
+2. **Medium Impact**: Add thrashing pattern for ECONNREFUSED to known issues
+3. **Low Impact**: Improve codebase search before implementing utilities
+
+## Next Steps
+
+Review these suggestions and:
+1. Apply relevant changes to AGENTS.md
+2. Update autopilot.json if needed
+3. Delete this analytics file after applying learnings
+
+Run `/autopilot analyze --clear` to delete all processed analytics files.
+```
+
+### Analysis Output
+
+The analysis is printed to console as markdown for easy reading. Suggestions are NOT automatically applied - you review and apply them manually to maintain control over the autopilot configuration.
+
+After reviewing and applying suggestions, delete the analytics files:
+```bash
+rm docs/tasks/analytics/*.json
+```
+
+Or use `/autopilot analyze --clear` to delete all analytics files after reviewing.
 
 ## Mode: Test Coverage
 
@@ -250,6 +412,54 @@ All modes include stuck handling to prevent infinite loops on intractable proble
 4. **Completion**: Output COMPLETE when done or only stuck items remain
 
 This ensures autopilot makes progress even when some tasks are blocked.
+
+## Thrashing Detection
+
+**Thrashing** occurs when the same error repeats without meaningful progress. This wastes tokens and indicates a fundamental blocker that retrying won't solve.
+
+### How Thrashing Detection Works
+
+1. **Track consecutive errors**: For each requirement, maintain a list of recent error messages
+2. **Normalize errors**: Strip variable parts (timestamps, line numbers, UUIDs) to compare error patterns
+3. **Detect repetition**: If the same normalized error appears N times consecutively (default: 3, configurable via `analytics.thrashingThreshold`)
+4. **Abort early**: Immediately mark the requirement as `stuck` with `blockedReason: "Thrashing detected: <pattern>"`
+
+### Common Thrashing Patterns
+
+| Pattern | Likely Cause | Suggested Fix |
+|---------|--------------|---------------|
+| `ECONNREFUSED localhost:*` | Sandbox blocking ports | Set `sandbox: false` in feedback loop |
+| `Cannot find module` | Missing dependency | Check package.json, run npm install |
+| `ETIMEOUT` | Network/service unavailable | Check if external service is running |
+| `Permission denied` | File/directory permissions | Check ownership, sandbox restrictions |
+| Same test assertion failing | Logic error or misunderstanding | Re-read requirement, check assumptions |
+
+### Analytics Integration
+
+When thrashing is detected:
+
+1. **Log to analytics file**:
+   ```json
+   {
+     "thrashing": {
+       "detected": true,
+       "pattern": "ECONNREFUSED localhost:5432",
+       "consecutiveCount": 5,
+       "aborted": true
+     }
+   }
+   ```
+
+2. **Update notes file** with thrashing details for human review
+
+3. **Add to session summary** under waste patterns
+
+### Thrashing vs Regular Stuck
+
+- **Regular stuck**: Tried 3 different approaches, none worked
+- **Thrashing**: Same exact error 3+ times, no progress
+
+Thrashing aborts faster because retrying the identical action is definitionally wasteful. Regular stuck handling allows for trying different approaches before giving up.
 
 ## Completion Summary
 

@@ -325,6 +325,39 @@
         }
       }
     },
+    "analytics": {
+      "type": "object",
+      "description": "Session analytics for identifying token waste and improvement opportunities",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to generate per-session analytics files"
+        },
+        "directory": {
+          "type": "string",
+          "default": "docs/tasks/analytics",
+          "description": "Directory for storing session analytics files"
+        },
+        "thrashingThreshold": {
+          "type": "integer",
+          "default": 3,
+          "minimum": 2,
+          "maximum": 10,
+          "description": "Number of consecutive identical errors before marking task as stuck (thrashing detection)"
+        },
+        "trackToolCalls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to track tool call counts per requirement"
+        },
+        "trackFileAccess": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to track files read/written per requirement"
+        }
+      }
+    },
     "workspaces": {
       "type": "object",
       "description": "Monorepo workspace configuration for projects with multiple packages",
