@@ -2,6 +2,13 @@
 
 Start an autonomous work session with progress tracking and learnings.
 
+## Overview
+
+This prompt is structured in phases:
+- **Phase 0**: Pre-flight checks and argument parsing
+- **Phase 1-8**: Mode-specific execution
+- **Phase 99999+**: Critical guardrails (highest priority, read last for maximum attention)
+
 ## Usage
 
 ```
@@ -25,7 +32,9 @@ Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10,
 
 For larger task files, increase iterations or use `--start-from` to resume across sessions.
 
-## Pre-flight: Configuration Check
+## Phase 0: Pre-flight
+
+### 0a. Configuration Check
 
 **Before executing any mode, check for `autopilot.json` in the project root.**
 
@@ -71,7 +80,7 @@ Read the configuration and use:
 
 Proceed to argument parsing and mode execution.
 
-## Argument Parsing
+### 0b. Argument Parsing
 
 Parse `$ARGUMENTS` to extract:
 1. **Mode** - Determined by first argument (`init`, file path, `tests`, `lint`, or `entropy`)
@@ -93,7 +102,7 @@ Examples:
 - `/autopilot tests 80 15` → Test mode, 80% target, 15 iterations
 - `/autopilot lint 10` → Lint mode, 10 iterations
 
-## Mode Detection
+### 0c. Mode Detection
 
 Based on the argument ($ARGUMENTS), determine the mode:
 
@@ -106,7 +115,11 @@ Based on the argument ($ARGUMENTS), determine the mode:
 7. **If argument starts with `rollback`** → Rollback mode
 8. **If argument is `metrics`** → Metrics report mode
 
-## Mode: Init
+---
+
+## Phase 1: Mode Execution
+
+### Mode: Init
 
 For `init` argument, invoke the `/autopilot init` command to run the initialization wizard.
 
@@ -817,6 +830,81 @@ This structured format enables:
 **Cause:** The test isn't actually testing new behavior - either the feature already exists, or the test has a bug.
 
 **Solution:** Mark the requirement as `invalidTest: true` with `invalidTestReason` and skip to next requirement. Do NOT proceed with implementation.
+
+---
+
+## Phase 99999: Critical Guardrails
+
+**These rules have the highest priority. Violating them causes immediate failure.**
+
+### 99999. Feedback Loops Before Commits
+
+Run ALL enabled feedback loops before every commit:
+1. Typecheck (if enabled)
+2. Tests (if enabled)
+3. Lint (if enabled)
+
+Run them sequentially. If ANY fails, stop and fix before proceeding.
+
+### 999999. Never Commit on Failure
+
+**NEVER commit if any feedback loop fails.**
+
+Do not:
+- Commit with failing tests
+- Commit with type errors
+- Commit with lint errors
+- Batch commits hoping failures will be fixed later
+
+Fix the failure first, verify all loops pass, then commit.
+
+### 9999999. Search Before Implementing
+
+**Don't assume something isn't implemented. Always search first.**
+
+Before creating any new:
+- Utility function → Search for existing utilities
+- Component → Search for similar components
+- Pattern → Search for existing patterns in the codebase
+
+Use the codeAnalysis from the task file. Check existingFiles and patterns before writing new code.
+
+### 99999999. No Placeholders or TODOs
+
+**Implement fully or mark as stuck. No middle ground.**
+
+Do not:
+- Leave TODO comments in committed code
+- Create placeholder functions or stub implementations
+- Commit partial implementations with "will fix later"
+- Add FIXME comments instead of fixing
+
+If you cannot complete something:
+1. Mark the requirement as `stuck: true`
+2. Add a clear `blockedReason`
+3. Log to notes file
+4. Move to next requirement
+
+### 999999999. Single Source of Truth
+
+**No duplicate implementations. Extend existing code.**
+
+Before creating new code:
+1. Search for existing equivalent functionality
+2. Check if you can extend an existing file/function
+3. Look for utilities that already do what you need
+
+If you find duplicates during refactor:
+1. Consolidate to a single implementation
+2. Update all usages
+3. Log the consolidation to notes
+
+Prefer:
+- Extending existing code over creating parallel implementations
+- Reusing utilities over reimplementing
+- Following established patterns over inventing new ones
+
+---
 
 ## Execution
 

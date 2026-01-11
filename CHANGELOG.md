@@ -10,15 +10,22 @@ All notable changes to Autopilot will be documented in this file.
 - **`codeAnalysis` field** - Requirements now include rich context: `existingFiles`, `relatedTests`, `patterns`, and `targetFiles` (modify/create)
 - **`--refresh` flag for `/tasks`** - Re-analyze incomplete requirements while preserving completed ones; useful for mid-implementation course correction
 - **`tasks.schema.json`** - JSON Schema for task files, enabling validation and editor autocomplete
-- **Phase-numbered `/tasks` structure** - Clear Phase 0-4 structure: codebase analysis, gap analysis, task generation, dependency inference, review
+- **Phase-numbered structure** - Both `/tasks` and `autopilot.md` now use explicit phase numbering (Phase 0 for pre-flight, Phase 1+ for execution)
+- **Critical guardrails section** - `autopilot.md` now has Phase 99999+ with escalating priority guardrails:
+  - 99999: Feedback loops before commits
+  - 999999: Never commit on failure
+  - 9999999: Search before implementing
+  - 99999999: No placeholders or TODOs
+  - 999999999: Single source of truth
+- **Guardrails in AGENTS.md** - Added Guardrails section with search-first, no-placeholders, and single-source-of-truth rules
 
 ### Changed
 - **Code-aware TDD descriptions** - Test and implementation descriptions now reference specific files, patterns, and utilities discovered during analysis
 - **Example tasks file** - `examples/tasks-user-auth.json` updated with `codeAnalysis` examples showing the new structure
-- **"Don't assume not implemented" guardrail** - Built into `/tasks` Phase 1, ensuring Claude searches before generating tasks
+- **"Don't assume not implemented" guardrail** - Built into `/tasks` Phase 1 and `autopilot.md` guardrails, ensuring Claude searches before implementing
 
 ### Inspiration
-- Gap analysis and planning patterns adapted from [Ralph Playbook](https://github.com/ghuntley/ralph-playbook) by Geoffrey Huntley
+- Gap analysis, phase numbering, and guardrail patterns adapted from [Ralph Playbook](https://github.com/ghuntley/ralph-playbook) by Geoffrey Huntley
 
 ## 2026-01-09
 

@@ -44,6 +44,30 @@ This codebase will outlive you. Every shortcut becomes someone else's burden. Ev
 - Follow existing patterns in the codebase
 - The patterns you establish will be copied. The corners you cut will be cut again.
 
+## Guardrails
+
+Critical rules that must never be violated:
+
+### Search Before Implementing
+Don't assume something isn't implemented. Before creating any new utility, component, or pattern:
+1. Search the codebase for existing implementations
+2. Check if you can extend existing code
+3. Look for utilities that already do what you need
+
+### No Placeholders
+Implement fully or mark as stuck. Never:
+- Leave TODO/FIXME comments in committed code
+- Create placeholder functions or stub implementations
+- Commit partial implementations
+
+If blocked, mark the task as `stuck: true` with a clear reason and move on.
+
+### Single Source of Truth
+No duplicate implementations. Before writing new code:
+1. Search for existing equivalent functionality
+2. Prefer extending over creating parallel implementations
+3. Consolidate duplicates discovered during refactor
+
 ## Before Committing
 
 - Run typecheck, tests, and lint

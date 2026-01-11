@@ -15,8 +15,11 @@ The following suggestions have been implemented by enhancing `/tasks` with codeb
 | 1 | Separate Plan and Build Prompts | **Alternative approach:** Integrated planning into `/tasks` instead of separate prompts. `/tasks` now performs codebase analysis before generating tasks. |
 | 4 | Gap Analysis Before Implementation | `/tasks` Phase 0-1 now searches codebase, identifies existing code, and categorizes each requirement as `create`/`extend`/`modify`/`already-done`. |
 | 5 | "Don't Assume Not Implemented" | Built into `/tasks` Phase 1 with explicit "Critical Rule: Don't assume something isn't implemented. Always search first." |
+| 6 | Guardrail Numbering Convention | `autopilot.md` restructured with Phase 0 (pre-flight), Phase 1 (execution), Phase 99999+ (critical guardrails). |
 | 19 | Graceful Plan Regeneration | `/tasks --refresh` flag re-analyzes incomplete requirements while preserving completed ones. |
-| 23 | Explicit Phase Numbering | `/tasks` now uses Phase 0a-0d (orientation), Phase 1-4 (main work) structure. |
+| 23 | Explicit Phase Numbering | `/tasks` and `autopilot.md` now use explicit phase numbering (0a, 0b, 0c for orientation; 99999+ for guardrails). |
+| 24 | Single Source of Truth | Added as guardrail 999999999 in `autopilot.md` and in `AGENTS.md` Guardrails section. |
+| 25 | No Placeholders | Added as guardrail 99999999 in `autopilot.md` and in `AGENTS.md` Guardrails section. |
 
 **New files created:**
 - `tasks.schema.json` - JSON Schema for task files with `codeAnalysis` field
@@ -112,22 +115,19 @@ See "Implemented" section above. The `/tasks` command now includes:
 
 ---
 
-## 6. Guardrail Numbering Convention
+## 6. ~~Guardrail Numbering Convention~~ (Implemented)
 
-**Description:** Use high 9-sequence numbering (99999...) for critical guardrails at end of prompts.
+**Status:** Implemented in `autopilot.md`.
 
-**Purpose:** Ralph uses this pattern to mark increasing criticality. More 9s = more important. Guardrails placed at end are processed with high attention.
-
-**Details:**
-- Ralph structures prompts: Phase 0 (orientation) → Phases 1-N (main work) → 99999+ (guardrails)
-- Higher numbers indicate higher priority: 99999 < 999999 < 9999999
-- Critical guardrails like "no placeholders" get maximum 9s
-- Positions guardrails for maximum model attention (recency bias)
-
-**Implementation:**
-- Restructure autopilot.md with numbered phases
-- Move critical rules (no early commits, run feedback loops, etc.) to 99999+ section
-- Document numbering convention in CLAUDE.md
+`autopilot.md` now has:
+- **Phase 0**: Pre-flight (0a. Configuration Check, 0b. Argument Parsing, 0c. Mode Detection)
+- **Phase 1**: Mode Execution
+- **Phase 99999+**: Critical Guardrails with escalating priority:
+  - 99999: Feedback Loops Before Commits
+  - 999999: Never Commit on Failure
+  - 9999999: Search Before Implementing
+  - 99999999: No Placeholders or TODOs
+  - 999999999: Single Source of Truth
 
 ---
 
@@ -470,43 +470,31 @@ See "Implemented" section above. The `/tasks` command now uses:
 
 ---
 
-## 24. Single Source of Truth Guardrail
+## 24. ~~Single Source of Truth Guardrail~~ (Implemented)
 
-**Description:** Add explicit guardrail preventing duplicate implementations.
+**Status:** Implemented in `autopilot.md` and `AGENTS.md`.
 
-**Purpose:** Ralph's build prompt includes: "Single sources of truth, no duplicates." Prevents code sprawl.
+Added as guardrail 999999999 in `autopilot.md` Phase 99999 section:
+- Search for existing equivalent functionality before creating new code
+- Prefer extending over creating parallel implementations
+- Consolidate duplicates discovered during refactor
+- Log consolidations to notes
 
-**Details:**
-- Before creating new utility, search for existing equivalent
-- Prefer extending existing code over creating parallel implementation
-- Consolidate discovered duplicates during refactor phase
-- Log consolidations in notes file
-
-**Implementation:**
-- Add to AGENTS.md guardrails section
-- Include duplicate detection in gap analysis
-- Add to TDD refactor phase: "Consolidate any duplicates discovered"
-- Consider static analysis integration for duplicate detection
+Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 ---
 
-## 25. Complete Implementation Guardrail
+## 25. ~~Complete Implementation Guardrail~~ (Implemented)
 
-**Description:** Add explicit "no placeholders" guardrail.
+**Status:** Implemented in `autopilot.md` and `AGENTS.md`.
 
-**Purpose:** Ralph emphasizes complete implementations: "Complete implementations, no placeholders." Prevents TODO sprawl.
-
-**Details:**
-- No TODO comments left in committed code
+Added as guardrail 99999999 in `autopilot.md` Phase 99999 section:
+- No TODO/FIXME comments in committed code
 - No placeholder functions or stub implementations
-- If something can't be completed, mark requirement as stuck with reason
-- Either implement fully or document why it's blocked
+- No partial implementations with "will fix later"
+- If blocked: mark `stuck: true`, add `blockedReason`, move to next requirement
 
-**Implementation:**
-- Add to feedback loops: grep for TODO/FIXME/placeholder patterns
-- Add to commit verification: fail if new TODOs introduced
-- Document in AGENTS.md as critical guardrail
-- Consider pre-commit hook for enforcement
+Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 ---
 
@@ -514,8 +502,8 @@ See "Implemented" section above. The `/tasks` command now uses:
 
 | Priority | Suggestions | Status |
 |----------|-------------|--------|
-| **Implemented** | 1, 4, 5, 19, 23 | Done via enhanced `/tasks` command |
-| **High** | 6, 18, 24, 25 | Core methodology improvements (remaining) |
+| **Implemented** | 1, 4, 5, 6, 19, 23, 24, 25 | Done via `/tasks` enhancements and guardrails |
+| **High** | 18 | Acceptance-driven test requirements (remaining) |
 | **Medium** | 2, 7, 8, 10, 16, 22 | Workflow enhancements |
 | **Low** | 3, 9, 11-15, 17, 20, 21 | Nice-to-have features |
 
@@ -524,9 +512,9 @@ See "Implemented" section above. The `/tasks` command now uses:
 ## Next Steps
 
 1. ~~Implement gap analysis in /tasks~~ Done
-2. Test the enhanced `/tasks` command on a real project
-3. Consider implementing remaining high-priority items (6, 18, 24, 25)
-4. Apply phase numbering pattern to `autopilot.md` command
+2. ~~Apply phase numbering and guardrails to autopilot.md~~ Done
+3. Test the enhanced `/tasks` command on a real project
+4. Consider implementing #18 (acceptance-driven test requirements)
 
 ---
 
