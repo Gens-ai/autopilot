@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/tasks.schema.json",
+  "title": "Autopilot Tasks File",
+  "description": "Machine-readable task file for TDD execution with autopilot",
+  "type": "object",
+  "required": ["name", "description", "requirements"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "name": {
+      "type": "string",
+      "description": "Feature name (used for file naming and identification)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description from PRD overview"
+    },
+    "goals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What this feature aims to achieve"
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What this feature explicitly will NOT do"
+    },
+    "technicalNotes": {
+      "type": "string",
+      "description": "Technical constraints, dependencies, or considerations"
+    },
+    "_tdd": {
+      "type": "boolean",
+      "default": true,
+      "description": "Marker indicating this file uses TDD workflow"
+    },
+    "_priority_order": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Priority guidelines for requirement ordering"
+    },
+    "_step_size": {
+      "type": "string",
+      "description": "Guidance on commit granularity"
+    },
+    "requirements": {
+      "type": "array",
+      "description": "List of requirements to implement",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "description", "tdd", "verification", "passes"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for ordering and dependencies"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["functional", "ui", "integration"],
+            "description": "Requirement category"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Implementation priority"
+          },
+          "description": {
+            "type": "string",
+            "description": "Clear description of this requirement"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "IDs of requirements that must complete first"
+          },
+          "testType": {
+            "type": "string",
+            "enum": ["unit", "integration", "e2e"],
+            "description": "Type of test to use (maps to feedbackLoops.tests.commands)"
+          },
+          "issue": {
+            "type": "string",
+            "description": "Issue tracker reference (e.g., '#123', 'PROJ-456')"
+          },
+          "package": {
+            "type": "string",
+            "description": "Monorepo package name if applicable"
+          },
+          "codeAnalysis": {
+            "type": "object",
+            "description": "Codebase analysis findings from /tasks generation",
+            "properties": {
+              "approach": {
+                "type": "string",
+                "enum": ["create", "extend", "modify", "already-done"],
+                "description": "Implementation approach based on gap analysis"
+              },
+              "existingFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Related files discovered during analysis"
+              },
+              "relatedTests": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Existing test files to extend or reference"
+              },
+              "patterns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Patterns to follow based on existing code"
+              },
+              "targetFiles": {
+                "type": "object",
+                "description": "Specific files to modify or create",
+                "properties": {
+                  "modify": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Files to modify"
+                  },
+                  "create": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "New files to create"
+                  }
+                }
+              }
+            }
+          },
+          "tdd": {
+            "type": "object",
+            "description": "TDD phases for this requirement",
+            "required": ["test", "implement", "refactor"],
+            "properties": {
+              "test": {
+                "type": "object",
+                "required": ["description", "passes"],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "What test to write (should reference specific files and patterns)"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "Target test file path"
+                  },
+                  "passes": {
+                    "type": "boolean",
+                    "description": "Whether the test phase is complete"
+                  }
+                }
+              },
+              "implement": {
+                "type": "object",
+                "required": ["description", "passes"],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "What to implement (should reference specific files and utilities)"
+                  },
+                  "passes": {
+                    "type": "boolean",
+                    "description": "Whether the implementation phase is complete"
+                  }
+                }
+              },
+              "refactor": {
+                "type": "object",
+                "required": ["description", "passes"],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "What to refactor or clean up"
+                  },
+                  "passes": {
+                    "type": "boolean",
+                    "description": "Whether the refactor phase is complete"
+                  }
+                }
+              }
+            }
+          },
+          "verification": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Steps to verify this requirement is complete"
+          },
+          "passes": {
+            "type": "boolean",
+            "description": "Whether all TDD phases are complete"
+          },
+          "stuck": {
+            "type": "boolean",
+            "description": "Whether this requirement is blocked after 3 consecutive failures"
+          },
+          "blockedReason": {
+            "type": "string",
+            "description": "Explanation of why the requirement is stuck"
+          },
+          "invalidTest": {
+            "type": "boolean",
+            "description": "Whether the test passed before implementation (indicates invalid test)"
+          },
+          "invalidTestReason": {
+            "type": "string",
+            "description": "Explanation of why the test was marked invalid"
+          }
+        }
+      }
+    }
+  }
+}

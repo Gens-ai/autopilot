@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/tasks.schema.json",
   "name": "user-auth",
   "description": "User authentication system with email/password and OAuth",
   "goals": [
@@ -12,6 +13,15 @@
     "Enterprise SSO"
   ],
   "technicalNotes": "Using bcrypt for passwords, JWT for sessions, passport.js for OAuth",
+  "_tdd": true,
+  "_priority_order": [
+    "1. Architectural decisions and core abstractions",
+    "2. Integration points between modules",
+    "3. Unknown unknowns and spike work",
+    "4. Standard features and implementation",
+    "5. Polish, cleanup, and quick wins"
+  ],
+  "_step_size": "One logical change per commit. Quality over speed.",
   "requirements": [
     {
       "id": "1",
@@ -19,24 +29,39 @@
       "priority": "high",
       "description": "Create User model with email, password hash, and verification status",
       "testType": "unit",
+      "codeAnalysis": {
+        "approach": "create",
+        "existingFiles": ["src/models/index.ts", "src/db/schema.ts"],
+        "relatedTests": ["src/models/__tests__/BaseModel.test.ts"],
+        "patterns": [
+          "Models extend BaseModel class",
+          "Use Zod for validation schemas",
+          "Password hashing via bcrypt utility in src/lib/crypto.ts"
+        ],
+        "targetFiles": {
+          "modify": ["src/models/index.ts"],
+          "create": ["src/models/User.ts", "src/models/__tests__/User.test.ts"]
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Test User model creation, validation, and password hashing",
+          "description": "Create User.test.ts following BaseModel.test.ts patterns: test model creation, email validation with Zod, password hashing integration",
+          "file": "src/models/__tests__/User.test.ts",
           "passes": false
         },
         "implement": {
-          "description": "Create User model with bcrypt password hashing",
+          "description": "Create User model extending BaseModel, use existing Zod patterns from schema.ts, integrate bcrypt from src/lib/crypto.ts",
           "passes": false
         },
         "refactor": {
-          "description": "Extract password hashing to separate utility",
+          "description": "Extract email validation regex to shared constants if duplicated elsewhere",
           "passes": false
         }
       },
       "verification": [
         "User model exists with required fields",
         "Passwords are hashed with bcrypt",
-        "Email validation works"
+        "Email validation works via Zod schema"
       ],
       "passes": false
     },
@@ -48,24 +73,46 @@
       "dependsOn": ["1"],
       "testType": "integration",
       "issue": "#101",
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": [
+          "src/routes/index.ts",
+          "src/controllers/BaseController.ts",
+          "src/middleware/validation.ts"
+        ],
+        "relatedTests": ["src/routes/__tests__/health.test.ts"],
+        "patterns": [
+          "Controllers extend BaseController",
+          "Use validation middleware with Zod schemas",
+          "Routes registered in src/routes/index.ts"
+        ],
+        "targetFiles": {
+          "modify": ["src/routes/index.ts"],
+          "create": [
+            "src/controllers/AuthController.ts",
+            "src/routes/__tests__/auth.test.ts"
+          ]
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Test POST /auth/register creates user and returns token",
+          "description": "Create auth.test.ts following health.test.ts patterns: test POST /auth/register creates user, returns JWT, validates input",
+          "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
         "implement": {
-          "description": "Create registration endpoint with validation",
+          "description": "Create AuthController extending BaseController, add registration route to routes/index.ts, use existing validation middleware",
           "passes": false
         },
         "refactor": {
-          "description": "Add rate limiting middleware",
+          "description": "Add rate limiting using existing middleware pattern from src/middleware/",
           "passes": false
         }
       },
       "verification": [
         "Registration creates user in database",
         "Returns JWT token on success",
-        "Validates email format and password strength"
+        "Validates email format and password strength via Zod"
       ],
       "passes": false
     },
@@ -77,24 +124,45 @@
       "dependsOn": ["1", "2"],
       "testType": "integration",
       "issue": "#102",
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": [
+          "src/controllers/AuthController.ts",
+          "src/lib/crypto.ts",
+          "src/lib/jwt.ts"
+        ],
+        "relatedTests": ["src/routes/__tests__/auth.test.ts"],
+        "patterns": [
+          "JWT generation via src/lib/jwt.ts",
+          "Password comparison via bcrypt.compare in crypto.ts"
+        ],
+        "targetFiles": {
+          "modify": [
+            "src/controllers/AuthController.ts",
+            "src/routes/index.ts"
+          ],
+          "create": []
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Test POST /auth/login authenticates and returns token",
+          "description": "Add login tests to existing auth.test.ts: test POST /auth/login authenticates valid credentials, rejects invalid, returns JWT",
+          "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
         "implement": {
-          "description": "Create login endpoint with password verification",
+          "description": "Add login method to AuthController, use existing jwt.ts for token generation, crypto.ts for password verification",
           "passes": false
         },
         "refactor": {
-          "description": "Add login attempt tracking",
+          "description": "Extract auth response formatting to shared helper if duplicated with registration",
           "passes": false
         }
       },
       "verification": [
         "Correct credentials return JWT",
         "Wrong credentials return 401",
-        "Rate limiting prevents brute force"
+        "Response format matches registration endpoint"
       ],
       "passes": false
     },
@@ -105,22 +173,43 @@
       "description": "Implement password reset flow",
       "dependsOn": ["1"],
       "testType": "integration",
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": [
+          "src/controllers/AuthController.ts",
+          "src/services/EmailService.ts",
+          "src/lib/crypto.ts"
+        ],
+        "relatedTests": ["src/routes/__tests__/auth.test.ts"],
+        "patterns": [
+          "Email sending via EmailService.send()",
+          "Token generation via crypto.randomBytes pattern in crypto.ts"
+        ],
+        "targetFiles": {
+          "modify": [
+            "src/controllers/AuthController.ts",
+            "src/routes/index.ts"
+          ],
+          "create": ["src/models/PasswordResetToken.ts"]
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Test forgot password email and reset token flow",
+          "description": "Add password reset tests to auth.test.ts: test forgot-password sends email, reset-password validates token and updates password",
+          "file": "src/routes/__tests__/auth.test.ts",
           "passes": false
         },
         "implement": {
-          "description": "Create reset token generation and password update",
+          "description": "Create PasswordResetToken model, add forgot/reset endpoints to AuthController, use existing EmailService for notifications",
           "passes": false
         },
         "refactor": {
-          "description": "Add token expiration handling",
+          "description": "Add token expiration cleanup job or document manual cleanup process",
           "passes": false
         }
       },
       "verification": [
-        "Reset email is sent",
+        "Reset email is sent via EmailService",
         "Token allows password change",
         "Token expires after use or timeout"
       ],
@@ -133,24 +222,49 @@
       "description": "Add Google OAuth login",
       "dependsOn": ["1"],
       "testType": "e2e",
+      "codeAnalysis": {
+        "approach": "create",
+        "existingFiles": [
+          "src/controllers/AuthController.ts",
+          "src/config/env.ts"
+        ],
+        "relatedTests": [],
+        "patterns": [
+          "Environment config via src/config/env.ts",
+          "No existing OAuth patterns - will establish new pattern"
+        ],
+        "targetFiles": {
+          "modify": [
+            "src/controllers/AuthController.ts",
+            "src/routes/index.ts",
+            "src/config/env.ts"
+          ],
+          "create": [
+            "src/auth/strategies/google.ts",
+            "src/auth/strategies/index.ts",
+            "e2e/auth-oauth.spec.ts"
+          ]
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Test Google OAuth redirect and callback",
+          "description": "Create e2e/auth-oauth.spec.ts: test Google OAuth redirect URL, callback handling (mocked), user creation/linking",
+          "file": "e2e/auth-oauth.spec.ts",
           "passes": false
         },
         "implement": {
-          "description": "Configure passport-google-oauth20 strategy",
+          "description": "Create google.ts strategy using passport-google-oauth20, add OAuth routes, extend env.ts with GOOGLE_CLIENT_ID/SECRET",
           "passes": false
         },
         "refactor": {
-          "description": "Extract OAuth config to environment",
+          "description": "Extract OAuth config to separate config file, document required environment variables in README",
           "passes": false
         }
       },
       "verification": [
         "Google login redirects correctly",
         "Callback creates/links user",
-        "Returns valid JWT"
+        "Returns valid JWT matching email/password flow format"
       ],
       "passes": false
     }

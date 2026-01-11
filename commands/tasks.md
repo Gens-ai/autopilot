@@ -2,7 +2,7 @@
 
 ## Goal
 
-Convert an approved human-readable PRD into a machine-readable JSON task file that autopilot can execute autonomously using Test-Driven Development.
+Convert an approved human-readable PRD into a machine-readable JSON task file that autopilot can execute autonomously using Test-Driven Development. **Before generating tasks, analyze the codebase to understand what exists, identify patterns, and scope implementation accurately.**
 
 ## TDD Workflow
 
@@ -13,7 +13,8 @@ For each requirement, autopilot will:
 
 ## Input
 
-User provides a path to an approved PRD file: `/tasks docs/tasks/prds/feature-name.md`
+- **New tasks:** `/tasks docs/tasks/prds/feature-name.md`
+- **Refresh existing:** `/tasks docs/tasks/prds/feature-name.json --refresh`
 
 ## Output
 
@@ -21,15 +22,75 @@ User provides a path to an approved PRD file: `/tasks docs/tasks/prds/feature-na
 - **Location:** Same directory as the PRD
 - **Filename:** Same name as PRD but with `.json` extension
 
-## Process
+---
 
-1. **Read the PRD:** Parse the provided markdown PRD file
-2. **Extract Requirements:** Identify all requirements from the PRD
-3. **Structure for TDD:** For each requirement, create test and implementation sub-tasks
-4. **Present for Review:** Show the user the generated JSON structure
-5. **Save:** After user confirms, save the JSON file
+## Phase 0: Codebase Analysis
 
-## JSON Structure
+**Before generating any tasks, thoroughly explore the codebase.**
+
+### 0a. Extract Keywords from PRD
+
+Read the PRD and identify:
+- Core concepts and domain terms
+- Technical components mentioned (models, controllers, services, etc.)
+- Integration points (APIs, databases, external services)
+
+### 0b. Search for Related Code
+
+Using parallel subagents, search the codebase for:
+- Files matching PRD keywords (use Glob and Grep)
+- Existing implementations of similar features
+- Related test files and test patterns
+- Utilities, helpers, and shared code that could be reused
+
+### 0c. Study Discovered Files
+
+For each relevant file found:
+- Understand its purpose and structure
+- Identify patterns and conventions used
+- Note reusable utilities and abstractions
+- Check for partial implementations of PRD requirements
+
+### 0d. Document Findings
+
+Create a mental map of:
+- **Existing code:** What already exists that relates to this feature
+- **Patterns:** Architectural patterns, naming conventions, file organization
+- **Utilities:** Shared code that can be leveraged
+- **Gaps:** What's missing vs what the PRD requires
+
+---
+
+## Phase 1: Gap Analysis
+
+**For each PRD requirement, determine what exists vs what needs to be built.**
+
+### Assessment Categories
+
+| Approach | When to Use |
+|----------|-------------|
+| `create` | Nothing exists; build from scratch |
+| `extend` | Partial implementation exists; add to it |
+| `modify` | Implementation exists but needs changes |
+| `already-done` | Requirement is fully satisfied by existing code |
+
+### For Each Requirement
+
+1. Search for existing implementations that satisfy this requirement
+2. Search for existing tests that cover this behavior
+3. Identify specific files that would need modification
+4. Determine the approach (create/extend/modify/already-done)
+5. Note patterns to follow based on similar existing code
+
+**Critical Rule:** Don't assume something isn't implemented. Always search first.
+
+---
+
+## Phase 2: Task Generation
+
+Generate the JSON task file with enriched, code-aware information.
+
+### JSON Structure
 
 ```json
 {
@@ -52,30 +113,128 @@ User provides a path to an approved PRD file: `/tasks docs/tasks/prds/feature-na
       "id": "1",
       "category": "functional",
       "description": "Clear description of this requirement",
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": ["src/auth/UserService.ts"],
+        "relatedTests": ["src/auth/__tests__/UserService.test.ts"],
+        "patterns": ["Uses repository pattern", "Follows service layer conventions"],
+        "targetFiles": {
+          "modify": ["src/auth/UserService.ts"],
+          "create": ["src/auth/PasswordResetToken.ts"]
+        }
+      },
       "tdd": {
         "test": {
-          "description": "Write test for: [requirement description]",
-          "file": "path/to/expected/test/file.test.ts",
+          "description": "Add password reset tests to UserService.test.ts following existing test patterns",
+          "file": "src/auth/__tests__/UserService.test.ts",
           "passes": false
         },
         "implement": {
-          "description": "Implement: [requirement description]",
+          "description": "Add resetPassword() method to UserService, use existing EmailService for notifications",
           "passes": false
         },
         "refactor": {
-          "description": "Refactor if needed, keep tests green",
+          "description": "Extract token generation to shared utility if duplicated",
           "passes": false
         }
       },
       "verification": [
-        "Step to verify this requirement is complete",
-        "Another verification step"
+        "Reset token is generated and stored",
+        "Email is sent via existing EmailService",
+        "Password update invalidates token"
       ],
       "passes": false
     }
   ]
 }
 ```
+
+### Requirement Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier for ordering |
+| `category` | Yes | `functional`, `ui`, or `integration` |
+| `description` | Yes | Clear description of the requirement |
+| `codeAnalysis` | Yes | Findings from Phase 0-1 (see below) |
+| `dependsOn` | No | Array of requirement IDs that must complete first |
+| `testType` | No | `unit`, `integration`, or `e2e` |
+| `issue` | No | GitHub issue reference (e.g., `"#123"`) |
+| `package` | No | Monorepo package name if applicable |
+| `tdd` | Yes | Test, implement, refactor phases |
+| `verification` | Yes | Steps to verify completion |
+| `passes` | Yes | Set to `false` initially |
+
+### codeAnalysis Object
+
+| Field | Description |
+|-------|-------------|
+| `approach` | `create`, `extend`, `modify`, or `already-done` |
+| `existingFiles` | Related files discovered during analysis |
+| `relatedTests` | Existing test files to extend or reference |
+| `patterns` | Patterns to follow based on existing code |
+| `targetFiles.modify` | Specific files to modify |
+| `targetFiles.create` | New files to create |
+
+### Writing Code-Aware TDD Descriptions
+
+**Bad (generic):**
+```json
+"test": { "description": "Write tests for password reset" }
+"implement": { "description": "Implement password reset" }
+```
+
+**Good (code-aware):**
+```json
+"test": { "description": "Add password reset tests to UserService.test.ts, following existing createUser() test pattern" }
+"implement": { "description": "Add resetPassword() to UserService, use existing TokenGenerator utility and EmailService" }
+```
+
+---
+
+## Phase 3: Dependency Inference
+
+Based on code analysis, infer dependencies between requirements:
+
+1. If requirement A creates/modifies a file that requirement B depends on, add dependency
+2. If requirement A creates a model that requirement B uses, add dependency
+3. Present inferred dependencies to user for confirmation
+
+---
+
+## Phase 4: Review and Save
+
+1. Present the complete JSON structure to the user
+2. Highlight any requirements marked `already-done` (no implementation needed)
+3. Show inferred dependencies for confirmation
+4. After user confirms, save the JSON file
+
+---
+
+## Refresh Mode (`--refresh`)
+
+When given an existing tasks JSON file with `--refresh`:
+
+```
+/tasks docs/tasks/prds/feature.json --refresh
+```
+
+### Refresh Behavior
+
+1. **Preserve completed work:** Keep all requirements where `passes: true`
+2. **Re-analyze incomplete:** Run Phase 0-1 for requirements where `passes: false`
+3. **Update codeAnalysis:** Refresh file lists and approaches based on current code state
+4. **Detect newly done:** Mark requirements `already-done` if implementation was completed outside autopilot
+5. **Update notes:** Log refresh in the corresponding notes file
+
+### When to Refresh
+
+- Implementation went off-track and needs course correction
+- Significant time passed since initial task generation
+- Manual code changes affected the feature area
+- Discoveries during implementation changed the landscape
+
+---
 
 ## Requirement Categories
 
@@ -97,7 +256,9 @@ User provides a path to an approved PRD file: `/tasks docs/tasks/prds/feature-na
 - The `tdd.test.passes` must be true before starting `tdd.implement`
 - The `tdd.implement.passes` must be true before starting `tdd.refactor`
 - The requirement's `passes` becomes true only when all three phases complete
-- Suggest test file paths based on project conventions
+- Use specific file paths based on codebase analysis, not guesses
+- Reference existing patterns and utilities in descriptions
+- If `approach` is `already-done`, the requirement needs no implementation
 
 ## Next Step
 
