@@ -16,6 +16,7 @@ The following suggestions have been implemented by enhancing `/tasks` with codeb
 | 4 | Gap Analysis Before Implementation | `/tasks` Phase 0-1 now searches codebase, identifies existing code, and categorizes each requirement as `create`/`extend`/`modify`/`already-done`. |
 | 5 | "Don't Assume Not Implemented" | Built into `/tasks` Phase 1 with explicit "Critical Rule: Don't assume something isn't implemented. Always search first." |
 | 6 | Guardrail Numbering Convention | `autopilot.md` restructured with Phase 0 (pre-flight), Phase 1 (execution), Phase 99999+ (critical guardrails). |
+| 16 | Operational AGENTS.md Discipline | Trimmed AGENTS.md from 112 to 63 lines. Removed Learnings section (progress tracker). Added note to use notes file for learnings. |
 | 18 | Acceptance-Driven Test Requirements | Added `acceptance` array to requirements. TDD Red phase writes tests covering all acceptance criteria. |
 | 19 | Graceful Plan Regeneration | `/tasks --refresh` flag re-analyzes incomplete requirements while preserving completed ones. |
 | 23 | Explicit Phase Numbering | `/tasks` and `autopilot.md` now use explicit phase numbering (0a, 0b, 0c for orientation; 99999+ for guardrails). |
@@ -315,23 +316,15 @@ See "Implemented" section above. The `/tasks` command now includes:
 
 ---
 
-## 16. Operational AGENTS.md Discipline
+## 16. ~~Operational AGENTS.md Discipline~~ (Implemented)
 
-**Description:** Enforce strict operational focus for AGENTS.md - no progress notes or status updates.
+**Status:** Implemented in `AGENTS.md`.
 
-**Purpose:** Ralph emphasizes keeping AGENTS.md purely operational (~60 lines). Progress notes belong in plan/notes files.
-
-**Details:**
-- Ralph's AGENTS.md sections: Build & Run, Validation, Operational Notes, Codebase Patterns
-- NO: changelogs, progress updates, session logs, status reports
-- YES: build commands, test commands, discovered patterns, operational gotchas
-- Polluted AGENTS.md hurts all future loops (loaded every iteration)
-
-**Implementation:**
-- Add template enforcement to AGENTS.md
-- Move any non-operational content to notes files
-- Add line count check (~60 lines recommended)
-- Document separation of concerns: AGENTS.md (operational) vs notes (progress)
+Trimmed AGENTS.md from 112 lines to 63 lines:
+- Removed Learnings section (was a progress tracker, not operational)
+- Condensed TDD Pitfalls from 24 lines to 7 lines
+- Added footer note directing learnings to notes files
+- Kept purely operational content: TDD, Code Quality, Guardrails, Before Committing/Pushing
 
 ---
 
@@ -505,8 +498,8 @@ Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 | Priority | Suggestions | Status |
 |----------|-------------|--------|
-| **Implemented** | 1, 4, 5, 6, 18, 19, 23, 24, 25 | All high-priority items complete |
-| **Medium** | 2, 7, 8, 10, 16, 22 | Workflow enhancements |
+| **Implemented** | 1, 4, 5, 6, 16, 18, 19, 23, 24, 25 | High-priority items complete |
+| **Medium** | 2, 7, 8, 10, 22 | Workflow enhancements |
 | **Low** | 3, 9, 11-15, 17, 20, 21 | Nice-to-have features |
 
 ---

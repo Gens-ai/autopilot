@@ -4,6 +4,9 @@ All notable changes to Autopilot will be documented in this file.
 
 ## 2026-01-10
 
+### Changed
+- **AGENTS.md trimmed to 63 lines** - Removed Learnings section (progress tracker), condensed TDD Pitfalls. Keeps file purely operational per Ralph Playbook recommendation.
+
 ### Added
 - **Codebase analysis in `/tasks`** - Before generating tasks, `/tasks` now explores the codebase to understand existing patterns, utilities, and implementations
 - **Gap analysis** - Each requirement is categorized as `create`, `extend`, `modify`, or `already-done` based on what code already exists
