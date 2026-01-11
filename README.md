@@ -1,4 +1,4 @@
-# Autopilot: Autonomous TDD Development with Claude Code
+# Autopilot: Autonomous TDD Development with Claude Code and Ralph Wiggum
 
 A workflow for autonomous, test-driven development using Claude Code and the Ralph Loop plugin. Write a PRD, convert it to tasks, then let Claude implement everything using TDD while you sleep.
 
@@ -6,9 +6,12 @@ A workflow for autonomous, test-driven development using Claude Code and the Ral
 
 ## Credits
 
-This workflow is built on the [Ralph Wiggum](https://ghuntley.com/ralph/) approach by [Geoffrey Huntley](https://ghuntley.com/author/ghuntley/) (July 2025). Ralph runs your AI coding CLI in a loop, letting it work autonomously on a list of tasks.
+This workflow gratefully builds on contributions from the community:
 
-Additional inspiration from this amazing video walkthrough by [Ryan Carson](https://www.youtube.com/watch?v=RpvQH0r0ecM) and his repo [snarktank/ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) for PRD and task generation prompts. Some tips were also applied from [Matt Pocock](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum).
+- [Ralph Wiggum](https://ghuntley.com/ralph/) by [Geoffrey Huntley](https://ghuntley.com/author/ghuntley/) — The autonomous loop approach
+- [ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) by [Ryan Carson](https://www.youtube.com/watch?v=RpvQH0r0ecM) — PRD and task generation prompts
+- [Matt Pocock](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum) — Ralph workflow tips
+- [ralph-playbook](https://github.com/ClaytonFarr/ralph-playbook) by [Clayton Farr](https://github.com/ClaytonFarr) — Additional workflow tips
 
 ## Requirements
 
@@ -311,6 +314,7 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 | `/autopilot tests [target%] [N]` | Increase test coverage (default 80%, 10 iterations) |
 | `/autopilot lint [N]` | Fix all lint errors one by one (default: 15 iterations) |
 | `/autopilot entropy [N]` | Clean up code smells and dead code (default: 10 iterations) |
+| `/autopilot analyze` | Analyze session analytics for improvement suggestions |
 
 Pass an optional number `N` to override the default iterations from `autopilot.json`. Lower defaults optimize for token frugality.
 
@@ -400,6 +404,68 @@ To prevent infinite loops on intractable problems, autopilot includes stuck dete
 
 Stuck tasks are logged with a `blockedReason` so you can review and fix manually later.
 
+### Thrashing Detection
+
+**Thrashing** occurs when the same error repeats without meaningful progress—like trying to connect to a database 30 times when the sandbox is blocking the port. This wastes tokens on a fundamentally unsolvable problem.
+
+Autopilot detects thrashing by tracking consecutive identical errors:
+
+1. **Track errors** - Each error is normalized (timestamps/UUIDs stripped) and compared
+2. **Detect repetition** - If the same error appears 3+ times consecutively (configurable via `analytics.thrashingThreshold`)
+3. **Abort early** - Immediately mark the task as `stuck` with the thrashing pattern
+
+Common thrashing patterns and fixes:
+
+| Pattern | Likely Cause | Fix |
+|---------|--------------|-----|
+| `ECONNREFUSED localhost:*` | Sandbox blocking ports | Set `sandbox: false` in feedback loop |
+| `Cannot find module` | Missing dependency | Run `npm install` |
+| Same test assertion failing | Logic error | Re-read requirement |
+
+### Session Analytics
+
+Autopilot tracks per-session analytics to help identify token waste and improvement opportunities.
+
+**What's tracked:**
+- Iterations per requirement
+- Errors with type and message
+- Thrashing events
+- Files read/written
+- TDD phase timing
+
+**Analytics files** are stored in `docs/tasks/analytics/` with names like `2026-01-10-user-auth-1.json`.
+
+**Analyze sessions:**
+```bash
+/autopilot analyze                    # All sessions
+/autopilot analyze --last             # Most recent only
+/autopilot analyze --since 7d         # Last 7 days
+/autopilot analyze --task user-auth   # Specific task
+```
+
+The analysis generates:
+- **Efficiency score** - Productive vs wasted iterations
+- **Waste patterns** - Thrashing, environment issues, missing context
+- **Suggested fixes** - Proposed AGENTS.md entries and autopilot.json changes
+
+Suggestions are printed to console for you to review and apply manually. After applying learnings, delete the analytics files:
+```bash
+rm docs/tasks/analytics/*.json
+# or
+/autopilot analyze --clear
+```
+
+**Configuration** in `autopilot.json`:
+```json
+{
+  "analytics": {
+    "enabled": true,
+    "directory": "docs/tasks/analytics",
+    "thrashingThreshold": 3
+  }
+}
+```
+
 ### Resume and Rollback
 
 Autopilot creates git tags before starting each requirement, enabling safe recovery:
@@ -451,16 +517,19 @@ autopilot/                    # This repo (source of truth)
 │   ├── prd.md               # /prd command
 │   ├── tasks.md             # /tasks command
 │   ├── autopilot.md         # /autopilot command
-│   └── init.md              # /autopilot init command
+│   ├── init.md              # /autopilot init command
+│   └── analyze.md           # /autopilot analyze command
 ├── examples/
 │   ├── brainstorm.md        # Example feature brainstorm
 │   ├── prd-user-auth.md     # Example PRD document
 │   ├── tasks-user-auth.json # Example task file with TDD phases
-│   └── notes-user-auth.md   # Example progress notes
+│   ├── notes-user-auth.md   # Example progress notes
+│   └── analytics-user-auth-session.json  # Example session analytics
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for autopilot.json
+├── analytics.schema.json    # JSON schema for session analytics
 ├── tasks.schema.json        # JSON schema for task files
-├── `autopilot`             # Token-frugal wrapper script
+├── run.sh                   # Token-frugal wrapper script
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
 └── README.md
@@ -470,12 +539,15 @@ autopilot/                    # This repo (source of truth)
 │   ├── prd.md → repo
 │   ├── tasks.md → repo
 │   ├── autopilot.md → repo
-│   └── init.md → repo
+│   ├── init.md → repo
+│   └── analyze.md → repo
 └── AGENTS.md → repo
 
 your-project/                # Generated during workflow
 ├── autopilot.json           # Project configuration (created by /autopilot init)
 └── docs/tasks/
+    ├── analytics/           # Session analytics (auto-generated)
+    │   └── 2026-01-10-feature-1.json
     └── prds/
         ├── feature.md       # Human-readable PRD
         ├── feature.json     # Machine-readable tasks
@@ -632,7 +704,7 @@ Claude will discover and use whatever commands are appropriate for your project.
 Remove the symlinks:
 
 ```bash
-rm ~/.claude/commands/prd.md ~/.claude/commands/tasks.md ~/.claude/commands/autopilot.md ~/.claude/AGENTS.md
+rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.local/bin/autopilot
 ```
 
 Then delete the repo folder.
