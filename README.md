@@ -234,7 +234,7 @@ Before generating tasks, `/tasks` **analyzes your codebase** to understand what 
 3. **Phase 2: Task Generation** - Creates enriched JSON with code-aware context
 4. **Phase 3: Dependency Inference** - Auto-detects dependencies between requirements
 
-Each requirement includes a `codeAnalysis` object with specific file targets:
+Each requirement includes a `codeAnalysis` object with specific file targets and an `acceptance` array defining testable success criteria:
 
 ```json
 {
@@ -252,9 +252,14 @@ Each requirement includes a `codeAnalysis` object with specific file targets:
           "create": ["src/models/User.ts"]
         }
       },
+      "acceptance": [
+        "POST /auth/register returns 201 with JWT on valid input",
+        "Invalid email returns 400 with validation error",
+        "Duplicate email returns 409 conflict"
+      ],
       "tdd": {
-        "test": { "description": "Add registration tests to auth.test.ts following existing patterns", "passes": false },
-        "implement": { "description": "Extend AuthController with register endpoint, use existing validation middleware", "passes": false },
+        "test": { "description": "Add registration tests covering all acceptance criteria", "passes": false },
+        "implement": { "description": "Extend AuthController with register endpoint", "passes": false },
         "refactor": { "passes": false }
       },
       "passes": false
@@ -262,6 +267,8 @@ Each requirement includes a `codeAnalysis` object with specific file targets:
   ]
 }
 ```
+
+**Acceptance criteria** define what "done" means for each requirement. Each criterion becomes a test case in the TDD Red phase—Claude must write tests covering ALL acceptance criteria before proceeding to implementation.
 
 **Refresh mode:** If implementation goes off-track, re-analyze with `--refresh`:
 
@@ -331,6 +338,21 @@ Autopilot is optimized for token efficiency:
 3. **Structured notes** - Notes maintain a "Current State" section for quick state reconstruction.
 4. **Concise mode** - Claude is instructed to act without explaining, minimizing output tokens.
 5. **Targeted reads** - Uses line ranges instead of reading entire files when possible.
+
+### Subagent Parallelization
+
+Claude uses subagents strategically based on the task type:
+
+| Task Type | Strategy | Why |
+|-----------|----------|-----|
+| File reading | Parallel | No side effects, can read many files at once |
+| Grep/search | Parallel | Independent searches, faster exploration |
+| Codebase analysis | Parallel | Study multiple areas simultaneously |
+| Tests | Sequential | Need to see results before deciding next step |
+| Builds | Sequential | Must complete before validating |
+| Commits | Sequential | Require backpressure and verification |
+
+**Rule of thumb:** Reading and exploring uses parallel subagents for speed. Writing and executing uses sequential flow with feedback loops.
 
 ### Managing Context Limits
 
