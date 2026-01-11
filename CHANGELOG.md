@@ -6,6 +6,7 @@ All notable changes to Autopilot will be documented in this file.
 
 ### Changed
 - **AGENTS.md trimmed to 63 lines** - Removed Learnings section (progress tracker), condensed TDD Pitfalls. Keeps file purely operational per Ralph Playbook recommendation.
+- **Language patterns documented** - Added Language Patterns section to CLAUDE.md with proven phrasings ("study" vs "read", "capture the why", etc.)
 
 ### Added
 - **Codebase analysis in `/tasks`** - Before generating tasks, `/tasks` now explores the codebase to understand existing patterns, utilities, and implementations

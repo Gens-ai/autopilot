@@ -51,6 +51,7 @@ No duplicate implementations. Prefer extending over creating parallel implementa
 - Run typecheck, tests, and lint
 - Do NOT commit if any fail - fix first
 - One logical change per commit
+- Capture the why in commit messages, not just the what
 
 ## Before Pushing
 

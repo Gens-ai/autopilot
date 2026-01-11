@@ -30,7 +30,7 @@ For each requirement, autopilot will:
 
 ### 0a. Extract Keywords from PRD
 
-Read the PRD and identify:
+Study the PRD to identify:
 - Core concepts and domain terms
 - Technical components mentioned (models, controllers, services, etc.)
 - Integration points (APIs, databases, external services)

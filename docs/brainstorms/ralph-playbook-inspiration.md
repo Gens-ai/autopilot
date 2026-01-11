@@ -430,24 +430,20 @@ See "Implemented" section above. Usage:
 
 ---
 
-## 22. Prompt Language Patterns
+## 22. ~~Prompt Language Patterns~~ (Implemented)
 
-**Description:** Adopt Ralph's specific language patterns that improve Claude's behavior.
+**Status:** Implemented in `CLAUDE.md`, `tasks.md`, and `AGENTS.md`.
 
-**Purpose:** Certain phrasings trigger better behavior in Claude. Ralph documents these patterns.
+Added Language Patterns section to CLAUDE.md documenting:
+- "study" instead of "read" (deeper understanding)
+- "using parallel subagents" (triggers parallelization)
+- "don't assume not implemented" (triggers search behavior)
+- "capture the why" (encourages rationale in commits)
 
-**Details:**
-- "study" instead of "read" - implies deeper understanding
-- "don't assume not implemented" - triggers search behavior
-- "using parallel subagents" - triggers parallelization
-- "Ultrathink" - triggers extended reasoning
-- "capture the why" - encourages documentation of rationale
-
-**Implementation:**
-- Audit and update all command markdown files
-- Create glossary of preferred terms in CLAUDE.md
-- Add to AGENTS.md as "Language Patterns" section
-- Document reasoning behind each pattern choice
+Updated files:
+- `tasks.md`: "Read the PRD" → "Study the PRD"
+- `AGENTS.md`: Added "Capture the why in commit messages"
+- `CLAUDE.md`: New Language Patterns section with table
 
 ---
 
@@ -498,8 +494,8 @@ Also added to `AGENTS.md` Guardrails section for cross-project visibility.
 
 | Priority | Suggestions | Status |
 |----------|-------------|--------|
-| **Implemented** | 1, 4, 5, 6, 16, 18, 19, 23, 24, 25 | High-priority items complete |
-| **Medium** | 2, 7, 8, 10, 22 | Workflow enhancements |
+| **Implemented** | 1, 4, 5, 6, 16, 18, 19, 22, 23, 24, 25 | High/medium-priority items complete |
+| **Medium** | 2, 7, 8, 10 | Workflow enhancements |
 | **Low** | 3, 9, 11-15, 17, 20, 21 | Nice-to-have features |
 
 ---

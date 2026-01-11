@@ -86,6 +86,17 @@ The `examples/` directory contains reference files:
 - `tasks-user-auth.json` - Example task file with TDD tracking
 - `notes-user-auth.md` - Example progress notes file
 
+## Language Patterns
+
+Certain phrasings improve Claude's behavior. Use these patterns in prompts:
+
+| Pattern | Instead of | Why |
+|---------|------------|-----|
+| "study" | "read" | Implies deeper understanding, not just scanning |
+| "using parallel subagents" | (nothing) | Triggers parallelization for exploration |
+| "don't assume not implemented" | (nothing) | Triggers search-before-implement behavior |
+| "capture the why" | (nothing) | Encourages documenting rationale in commits |
+
 ## JSON Schema
 
 `autopilot.schema.json` validates `autopilot.json`. Key required fields:
