@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
+  "version": "1.0.0",
+  "project": {
+    "type": "typescript",
+    "conventions": {
+      "testFilePattern": "*.test.ts",
+      "testDirectory": "src/__tests__",
+      "sourceDirectory": "src"
+    }
+  },
+  "feedbackLoops": {
+    "typecheck": {
+      "command": "npm run typecheck",
+      "enabled": true
+    },
+    "tests": {
+      "command": "npm test",
+      "enabled": true
+    },
+    "lint": {
+      "command": "npm run lint",
+      "enabled": true
+    }
+  },
+  "iterations": {
+    "tasks": 15,
+    "tests": 10,
+    "lint": 15,
+    "entropy": 10
+  },
+  "server": {
+    "type": "github",
+    "owner": "your-org",
+    "repo": "your-monorepo",
+    "mcp": "github"
+  },
+  "codebase": {
+    "patterns": ["TypeScript", "React", "Express", "Monorepo"],
+    "architecture": "Turborepo monorepo with React frontend and Express API packages",
+    "dependencies": ["PostgreSQL", "Redis"]
+  },
+  "workspaces": {
+    "enabled": true,
+    "packages": {
+      "api": {
+        "path": "packages/api",
+        "feedbackLoops": {
+          "typecheck": {
+            "command": "npm run typecheck --workspace=api",
+            "enabled": true
+          },
+          "tests": {
+            "command": "npm test --workspace=api",
+            "enabled": true,
+            "sandbox": false
+          },
+          "lint": {
+            "command": "npm run lint --workspace=api",
+            "enabled": true
+          }
+        }
+      },
+      "web": {
+        "path": "packages/web",
+        "feedbackLoops": {
+          "typecheck": {
+            "command": "npm run typecheck --workspace=web",
+            "enabled": true
+          },
+          "tests": {
+            "command": "npm test --workspace=web",
+            "enabled": true
+          },
+          "lint": {
+            "command": "npm run lint --workspace=web",
+            "enabled": true
+          }
+        }
+      },
+      "shared": {
+        "path": "packages/shared",
+        "feedbackLoops": {
+          "typecheck": {
+            "command": "npm run typecheck --workspace=shared",
+            "enabled": true
+          },
+          "tests": {
+            "command": "npm test --workspace=shared",
+            "enabled": true
+          },
+          "lint": {
+            "command": "npm run lint --workspace=shared",
+            "enabled": true
+          }
+        }
+      }
+    }
+  },
+  "analytics": {
+    "enabled": true,
+    "directory": "docs/tasks/analytics",
+    "thrashingThreshold": 3
+  }
+}

@@ -52,6 +52,8 @@ Run /autopilot init to set up autopilot with:
 - Server configuration
 
 This only needs to be done once per project.
+
+Quick setup: /autopilot init --force (uses auto-detected values)
 ```
 
 Then stop execution. Do not proceed without configuration.
@@ -65,9 +67,19 @@ Check these required fields:
 
 If any required fields are null, tell the user:
 ```
-Autopilot configuration is incomplete. Missing: <list missing fields>
+Autopilot configuration is incomplete.
 
-Run /autopilot init to complete the setup, or manually edit autopilot.json.
+Missing fields:
+- <list missing fields with descriptions>
+
+How to fix:
+1. Run /autopilot init to re-detect and fill missing values
+2. Or manually edit autopilot.json:
+   - project.type: Your project language (nodejs, python, go, etc.)
+   - feedbackLoops.tests.command: Command to run tests (e.g., "npm test")
+   - feedbackLoops.lint.command: Command to run linter (e.g., "npm run lint")
+
+If you don't have tests or linting, set enabled: false for that feedback loop.
 ```
 
 Then stop execution.
@@ -305,6 +317,23 @@ Steps:
 4. Update the task JSON to reset the requirement and any subsequent requirements to `passes: false`
 
 **Warning**: This is a destructive operation. All commits after the tag will be lost.
+
+## Mode: Metrics
+
+For `metrics` argument. Generates an aggregated metrics report across all autopilot sessions.
+
+**Note:** This is an alias for `/autopilot analyze` with aggregation focus. Both commands read the same analytics data.
+
+Usage:
+```
+/autopilot metrics                    # Show aggregated metrics across all sessions
+/autopilot metrics --since 30d        # Metrics from last 30 days
+```
+
+Redirect to analyze mode with appropriate messaging:
+1. Tell the user: "Generating metrics report..."
+2. Execute the analyze command logic (see Mode: Analyze below)
+3. Focus output on aggregated statistics rather than per-session suggestions
 
 ## Mode: Analyze
 

@@ -96,6 +96,30 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Check for required dependencies
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is required but not installed${NC}"
+    echo ""
+    echo "Install jq using your package manager:"
+    echo "  macOS:   brew install jq"
+    echo "  Ubuntu:  sudo apt-get install jq"
+    echo "  Fedora:  sudo dnf install jq"
+    echo "  Arch:    sudo pacman -S jq"
+    echo ""
+    echo "Or visit: https://jqlang.github.io/jq/download/"
+    exit 1
+fi
+
+if ! command -v claude &> /dev/null; then
+    echo -e "${RED}Error: Claude Code CLI is required but not installed${NC}"
+    echo ""
+    echo "Install Claude Code CLI:"
+    echo "  npm install -g @anthropic-ai/claude-code"
+    echo ""
+    echo "Or visit: https://docs.anthropic.com/en/docs/claude-code"
+    exit 1
+fi
+
 # Validate taskfile
 if [[ -z "$TASKFILE" ]]; then
     echo -e "${RED}Error: No task file specified${NC}"
@@ -105,6 +129,35 @@ fi
 
 if [[ ! -f "$TASKFILE" ]]; then
     echo -e "${RED}Error: Task file not found: $TASKFILE${NC}"
+    echo ""
+    echo "Common task file locations:"
+    echo "  docs/tasks/prds/<feature>.json"
+    echo "  tasks/<feature>.json"
+    echo ""
+    echo "Run '/tasks <prd-file.md>' to generate a task file from a PRD."
+    exit 1
+fi
+
+# Validate task file is valid JSON with requirements array
+if ! jq empty "$TASKFILE" 2>/dev/null; then
+    echo -e "${RED}Error: Task file is not valid JSON: $TASKFILE${NC}"
+    echo ""
+    echo "Check for syntax errors like:"
+    echo "  - Missing commas between items"
+    echo "  - Unclosed brackets or braces"
+    echo "  - Trailing commas before closing brackets"
+    echo ""
+    echo "Validate with: jq . $TASKFILE"
+    exit 1
+fi
+
+if ! jq -e '.requirements' "$TASKFILE" >/dev/null 2>&1; then
+    echo -e "${RED}Error: Task file missing 'requirements' array: $TASKFILE${NC}"
+    echo ""
+    echo "Task files must have a 'requirements' array. Example:"
+    echo '  { "requirements": [{ "id": "1", "description": "..." }] }'
+    echo ""
+    echo "Run '/tasks <prd-file.md>' to generate a valid task file."
     exit 1
 fi
 
@@ -230,6 +283,10 @@ while true; do
         echo -e "${BLUE}Starting Claude Code session...${NC}"
         echo ""
 
+        # Track progress before session
+        COMPLETED_BEFORE=$(count_completed)
+        STUCK_BEFORE=$(count_stuck)
+
         # Run Claude in background so we can monitor for stop signal
         claude --dangerously-skip-permissions "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
@@ -250,10 +307,34 @@ while true; do
         done
 
         # Wait for Claude to finish and get exit code
-        wait "$CLAUDE_PID" || true
+        CLAUDE_EXIT=0
+        wait "$CLAUDE_PID" || CLAUDE_EXIT=$?
 
         echo ""
-        echo -e "${GREEN}Session $SESSION complete${NC}"
+
+        # Track progress after session
+        COMPLETED_AFTER=$(count_completed)
+        STUCK_AFTER=$(count_stuck)
+        COMPLETED_THIS_SESSION=$((COMPLETED_AFTER - COMPLETED_BEFORE))
+        STUCK_THIS_SESSION=$((STUCK_AFTER - STUCK_BEFORE))
+
+        # Show session result
+        if [[ "$CLAUDE_EXIT" -eq 0 ]]; then
+            echo -e "${GREEN}Session $SESSION complete${NC}"
+        else
+            echo -e "${YELLOW}Session $SESSION exited with code $CLAUDE_EXIT${NC}"
+        fi
+
+        # Show progress made this session
+        if [[ "$COMPLETED_THIS_SESSION" -gt 0 ]]; then
+            echo -e "${GREEN}  + $COMPLETED_THIS_SESSION requirement(s) completed${NC}"
+        fi
+        if [[ "$STUCK_THIS_SESSION" -gt 0 ]]; then
+            echo -e "${YELLOW}  + $STUCK_THIS_SESSION requirement(s) stuck${NC}"
+        fi
+        if [[ "$COMPLETED_THIS_SESSION" -eq 0 && "$STUCK_THIS_SESSION" -eq 0 ]]; then
+            echo -e "${YELLOW}  No progress this session (may need manual intervention)${NC}"
+        fi
     fi
 
     # Brief pause between sessions (only if batching)

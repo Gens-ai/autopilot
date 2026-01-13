@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/tasks.schema.json",
+  "prdSource": "docs/tasks/prds/cross-package-feature.md",
+  "generatedAt": "2026-01-10T10:00:00Z",
+  "codebaseAnalysis": {
+    "completedAt": "2026-01-10T10:00:05Z",
+    "filesAnalyzed": 45,
+    "patternsDetected": ["TypeScript", "React", "Express", "Turborepo"]
+  },
+  "requirements": [
+    {
+      "id": "1",
+      "description": "Add shared User type to shared package",
+      "package": "shared",
+      "codeAnalysis": {
+        "approach": "create",
+        "existingFiles": ["packages/shared/src/types/index.ts"],
+        "relatedTests": [],
+        "patterns": ["Export all types from index.ts"],
+        "targetFiles": {
+          "create": ["packages/shared/src/types/user.ts"],
+          "modify": ["packages/shared/src/types/index.ts"]
+        }
+      },
+      "acceptance": [
+        "User type exported from @monorepo/shared",
+        "User type includes id, email, name, createdAt fields",
+        "Type is compatible with database schema"
+      ],
+      "tdd": {
+        "test": { "description": "Add type tests for User interface", "passes": false },
+        "implement": { "description": "Create User type definition", "passes": false },
+        "refactor": { "passes": false }
+      },
+      "passes": false
+    },
+    {
+      "id": "2",
+      "description": "Add user API endpoint to api package",
+      "package": "api",
+      "dependsOn": ["1"],
+      "codeAnalysis": {
+        "approach": "extend",
+        "existingFiles": [
+          "packages/api/src/routes/index.ts",
+          "packages/api/src/controllers/BaseController.ts"
+        ],
+        "relatedTests": ["packages/api/src/__tests__/routes.test.ts"],
+        "patterns": ["Controllers extend BaseController", "Routes registered in index.ts"],
+        "targetFiles": {
+          "create": [
+            "packages/api/src/controllers/UserController.ts",
+            "packages/api/src/routes/users.ts"
+          ],
+          "modify": ["packages/api/src/routes/index.ts"]
+        }
+      },
+      "acceptance": [
+        "GET /api/users returns list of users",
+        "GET /api/users/:id returns single user or 404",
+        "Uses User type from @monorepo/shared"
+      ],
+      "testType": "integration",
+      "tdd": {
+        "test": { "description": "Add integration tests for user endpoints", "passes": false },
+        "implement": { "description": "Create UserController and routes", "passes": false },
+        "refactor": { "passes": false }
+      },
+      "passes": false
+    },
+    {
+      "id": "3",
+      "description": "Add user list component to web package",
+      "package": "web",
+      "dependsOn": ["1", "2"],
+      "codeAnalysis": {
+        "approach": "create",
+        "existingFiles": [
+          "packages/web/src/components/index.ts",
+          "packages/web/src/hooks/useApi.ts"
+        ],
+        "relatedTests": ["packages/web/src/__tests__/components.test.tsx"],
+        "patterns": ["Components use useApi hook", "Export from components/index.ts"],
+        "targetFiles": {
+          "create": ["packages/web/src/components/UserList.tsx"],
+          "modify": ["packages/web/src/components/index.ts"]
+        }
+      },
+      "acceptance": [
+        "UserList component renders list of users from API",
+        "Shows loading state while fetching",
+        "Shows error state on API failure",
+        "Uses User type from @monorepo/shared"
+      ],
+      "tdd": {
+        "test": { "description": "Add component tests for UserList", "passes": false },
+        "implement": { "description": "Create UserList component with API integration", "passes": false },
+        "refactor": { "passes": false }
+      },
+      "passes": false
+    }
+  ]
+}

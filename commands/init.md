@@ -226,10 +226,10 @@ Construct the configuration based on all detected values:
     }
   },
   "iterations": {
-    "tasks": 50,
-    "tests": 30,
-    "lint": 50,
-    "entropy": 30
+    "tasks": 15,
+    "tests": 10,
+    "lint": 15,
+    "entropy": 10
   },
   "server": {
     "type": "<detected-type>",
