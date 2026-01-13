@@ -14,6 +14,7 @@ This prompt is structured in phases:
 ```
 /autopilot init                             # Initialize project configuration
 /autopilot stop                             # Stop run.sh loop gracefully
+/autopilot cancel                           # Cancel hook-based loop
 /autopilot <file.json> [max-iterations]    # TDD task completion mode (default)
 /autopilot tests [target%] [max-iterations] # Test coverage mode
 /autopilot lint [max-iterations]            # Linting mode
@@ -108,13 +109,14 @@ Based on the argument ($ARGUMENTS), determine the mode:
 
 1. **If argument is `init`** → Run `/autopilot init` command (invoke the init.md command)
 2. **If argument is `stop`** → Stop mode (signal run.sh to exit)
-3. **If argument ends with `.json` or `.md`** → TDD task completion mode
-4. **If argument starts with `tests`** → Test coverage mode
-5. **If argument starts with `lint`** → Linting mode
-6. **If argument starts with `entropy`** → Entropy/cleanup mode
-7. **If argument starts with `rollback`** → Rollback mode
-8. **If argument is `metrics`** → Metrics report mode
-9. **If argument is `analyze`** → Session analytics mode
+3. **If argument is `cancel`** → Cancel mode (remove loop state file)
+4. **If argument ends with `.json` or `.md`** → TDD task completion mode
+5. **If argument starts with `tests`** → Test coverage mode
+6. **If argument starts with `lint`** → Linting mode
+7. **If argument starts with `entropy`** → Entropy/cleanup mode
+8. **If argument starts with `rollback`** → Rollback mode
+9. **If argument is `metrics`** → Metrics report mode
+10. **If argument is `analyze`** → Session analytics mode
 
 ### 0d. Analytics Initialization
 
@@ -186,6 +188,32 @@ Steps:
    Stop signal sent to autopilot (PID $PID). The session will terminate shortly.
    ```
 
+## Mode: Cancel
+
+For `cancel` argument. Cancels an active hook-based loop by removing the state file.
+
+**Do not check for autopilot.json** - this mode should work regardless of configuration.
+
+Steps:
+1. Check if `.autopilot/loop-state.md` exists
+2. If it does not exist, tell the user:
+   ```
+   No active autopilot loop found.
+
+   If you're trying to stop the run.sh wrapper, use:
+     /autopilot stop
+   Or press Ctrl+C in the terminal running the wrapper.
+   ```
+3. If it exists, read the current iteration from the YAML frontmatter
+4. Delete the file: `rm .autopilot/loop-state.md`
+5. Tell the user:
+   ```
+   Autopilot loop canceled at iteration N.
+
+   The loop will exit on the next iteration attempt.
+   Note: Any work in progress will complete before the loop stops.
+   ```
+
 ## Mode: TDD Task Completion (default)
 
 For file paths (`.json` or `.md` files). Uses Test-Driven Development.
@@ -199,9 +227,56 @@ Read `autopilot.json` to get:
 Check for `--start-from ID` flag. If present, extract the START_ID.
 Check for `--batch N` flag. If present, extract the BATCH_COUNT (default: 0 means unlimited).
 
-Use the Skill tool with:
-- skill: `ralph-loop:ralph-loop`
-- args: `Complete requirements in TASKFILE using TDD. BATCH_INSTRUCTION Read TASKFILE-notes.md if it exists or create it with initial state template. Read AGENTS.md Learnings section for relevant prior learnings about this codebase. START_FROM_INSTRUCTION Skip requirements with passes true or invalidTest true or stuck true. Also skip requirements with dependsOn where any dependency has passes false. ANALYTICS_INSTRUCTION For each workable incomplete requirement first create git tag autopilot/req-ID/start and track files you modify. If requirement has a package field then use that package's feedback loop commands from workspaces config. If requirement has an issue field then append issue reference to commit messages. Do the TDD cycle - write failing test and run TEST_CMD and VERIFY TEST FAILS. If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next. Only after confirming test failure then commit and proceed to implementation. Write minimal implementation and run TEST_CMD to confirm pass then commit. Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit. Mark tdd phases as you complete each. Mark requirement passes true when all three phases done. Run feedback loops before committing. Do NOT commit if any fail. THRASHING_INSTRUCTION If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next. Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement. COMPLETION_INSTRUCTION --completion-promise COMPLETE --max-iterations MAXITER`
+### Loop Setup
+
+Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+
+```markdown
+---
+iteration: 1
+max_iterations: MAXITER
+completion_promise: COMPLETE
+---
+
+Complete requirements in TASKFILE using TDD.
+
+BATCH_INSTRUCTION
+
+Read TASKFILE-notes.md if it exists or create it with initial state template.
+Read AGENTS.md Learnings section for relevant prior learnings about this codebase.
+
+START_FROM_INSTRUCTION
+
+Skip requirements with passes true or invalidTest true or stuck true.
+Also skip requirements with dependsOn where any dependency has passes false.
+
+ANALYTICS_INSTRUCTION
+
+For each workable incomplete requirement:
+1. First create git tag autopilot/req-ID/start
+2. Track files you modify
+3. If requirement has a package field then use that package feedback loop commands from workspaces config
+4. If requirement has an issue field then append issue reference to commit messages
+
+TDD Cycle:
+- RED: Write failing test and run TEST_CMD and VERIFY TEST FAILS
+  - If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next
+  - Only after confirming test failure then commit and proceed to implementation
+- GREEN: Write minimal implementation and run TEST_CMD to confirm pass then commit
+- REFACTOR: Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit
+
+Mark tdd phases as you complete each.
+Mark requirement passes true when all three phases done.
+Run feedback loops before committing. Do NOT commit if any fail.
+
+THRASHING_INSTRUCTION
+
+If same task fails 3 iterations then add stuck true with blockedReason and ADD A LEARNING to AGENTS.md under the appropriate category explaining what blocked you and note that rollback is available with /autopilot rollback ID and log blocker to notes and skip to next.
+
+Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement.
+
+COMPLETION_INSTRUCTION
+```
 
 Replace:
 - ANALYTICS_INSTRUCTION with `If analytics enabled then update ANALYTICS_FILE with requirement start time and increment actualIterations after each iteration and log errors with type and message to the requirement errors array and track filesRead and filesWritten.` if analytics are enabled, otherwise remove it
@@ -212,6 +287,10 @@ Replace:
 - START_FROM_INSTRUCTION with `Skip requirements with id less than START_ID.` if --start-from was specified, otherwise remove it
 - BATCH_INSTRUCTION with `Stop after completing BATCH_COUNT requirements and output COMPLETE.` if --batch was specified, otherwise remove it
 - COMPLETION_INSTRUCTION with `Output COMPLETE after completing BATCH_COUNT requirements.` if --batch was specified, otherwise `Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies.`
+
+### Execution
+
+After creating the loop state file, execute the TDD cycle directly. The stop-hook will intercept exit attempts and re-feed the prompt for subsequent iterations until COMPLETE is output or max iterations reached.
 
 ## Mode: Rollback
 
@@ -359,14 +438,52 @@ Read `autopilot.json` to get:
 - `MAXITER` default from `iterations.tests` (usually 10)
 - Coverage targeting options from `coverage` config
 
-Use the Skill tool with:
-- skill: `ralph-loop:ralph-loop`
-- args: `Increase test coverage to TARGET percent minimum. Read docs/tasks/test-coverage-notes.md if it exists or create it with initial state template. Run coverage report. Prioritize uncovered code in this order - 1 recently changed files from git log last 30 days - 2 critical paths like auth and payments and error handling - 3 high complexity functions - 4 remaining uncovered lines. Exclude files matching coverage.exclude patterns. Write tests for highest priority uncovered paths first. Run TEST_CMD to verify pass. Run coverage to verify improvement. If no coverage increase after 3 iterations then log blocker to notes and output COMPLETE with current coverage. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each test passes. Output COMPLETE when target reached or stuck. --completion-promise COMPLETE --max-iterations MAXITER`
+### Loop Setup
+
+Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+
+```markdown
+---
+iteration: 1
+max_iterations: MAXITER
+completion_promise: COMPLETE
+---
+
+Increase test coverage to TARGET percent minimum.
+
+Read docs/tasks/test-coverage-notes.md if it exists or create it with initial state template.
+
+Run coverage report.
+
+Prioritize uncovered code in this order:
+1. Recently changed files from git log last 30 days
+2. Critical paths like auth and payments and error handling
+3. High complexity functions
+4. Remaining uncovered lines
+
+Exclude files matching coverage.exclude patterns.
+
+Write tests for highest priority uncovered paths first.
+Run TEST_CMD to verify pass.
+Run coverage to verify improvement.
+
+If no coverage increase after 3 iterations then log blocker to notes and output COMPLETE with current coverage.
+
+Update notes with Current State section.
+Log learnings to AGENTS.md.
+Commit after each test passes.
+
+Output COMPLETE when target reached or stuck.
+```
 
 Replace:
 - TARGET with the provided percentage (default: 80)
 - MAXITER with the provided number or default from `iterations.tests`
 - TEST_CMD with command from autopilot.json
+
+### Execution
+
+After creating the loop state file, execute the coverage improvement cycle directly. The stop-hook handles iteration.
 
 ## Mode: Linting
 
@@ -376,13 +493,43 @@ Read `autopilot.json` to get:
 - `LINT_CMD` from `feedbackLoops.lint.command`
 - `MAXITER` default from `iterations.lint` (usually 15)
 
-Use the Skill tool with:
-- skill: `ralph-loop:ralph-loop`
-- args: `Fix lint errors one at a time. Read docs/tasks/lint-fixes-notes.md if it exists or create it with initial state template. Run LINT_CMD. Fix ONE error at a time. Run LINT_CMD to verify fix. Do not batch fixes. If same error fails 3 attempts then log to notes with details and skip to next. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no errors remain or only stuck errors. --completion-promise COMPLETE --max-iterations MAXITER`
+### Loop Setup
+
+Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+
+```markdown
+---
+iteration: 1
+max_iterations: MAXITER
+completion_promise: COMPLETE
+---
+
+Fix lint errors one at a time.
+
+Read docs/tasks/lint-fixes-notes.md if it exists or create it with initial state template.
+
+Run LINT_CMD.
+
+Fix ONE error at a time.
+Run LINT_CMD to verify fix.
+Do not batch fixes.
+
+If same error fails 3 attempts then log to notes with details and skip to next.
+
+Update notes with Current State section.
+Log learnings to AGENTS.md.
+Commit after each fix passes.
+
+Output COMPLETE when no errors remain or only stuck errors.
+```
 
 Replace:
 - MAXITER with the provided number or default from `iterations.lint`
 - LINT_CMD with command from autopilot.json
+
+### Execution
+
+After creating the loop state file, execute the lint fix cycle directly. The stop-hook handles iteration.
 
 ## Mode: Entropy
 
@@ -394,13 +541,50 @@ Read `autopilot.json` to get:
 - `LINT_CMD` from `feedbackLoops.lint.command`
 - `MAXITER` default from `iterations.entropy` (usually 10)
 
-Use the Skill tool with:
-- skill: `ralph-loop:ralph-loop`
-- args: `Clean up code entropy. Read docs/tasks/entropy-cleanup-notes.md if it exists or create it with initial state template. Run code-simplifier on recent files. Scan for code smells like unused exports and dead code and inconsistent patterns and duplicates and complex functions. Fix ONE issue at a time. Run TYPECHECK_CMD and TEST_CMD and LINT_CMD after each fix. Do NOT commit if any fail. If same issue fails 3 attempts then log to notes and move on. Update notes with Current State section. Log learnings to AGENTS.md. Commit after each fix passes. Output COMPLETE when no smells remain or only stuck issues. --completion-promise COMPLETE --max-iterations MAXITER`
+### Loop Setup
+
+Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+
+```markdown
+---
+iteration: 1
+max_iterations: MAXITER
+completion_promise: COMPLETE
+---
+
+Clean up code entropy.
+
+Read docs/tasks/entropy-cleanup-notes.md if it exists or create it with initial state template.
+
+Run code-simplifier on recent files.
+
+Scan for code smells like:
+- Unused exports
+- Dead code
+- Inconsistent patterns
+- Duplicates
+- Complex functions
+
+Fix ONE issue at a time.
+Run TYPECHECK_CMD and TEST_CMD and LINT_CMD after each fix.
+Do NOT commit if any fail.
+
+If same issue fails 3 attempts then log to notes and move on.
+
+Update notes with Current State section.
+Log learnings to AGENTS.md.
+Commit after each fix passes.
+
+Output COMPLETE when no smells remain or only stuck issues.
+```
 
 Replace:
 - MAXITER with the provided number or default from `iterations.entropy`
 - TYPECHECK_CMD, TEST_CMD, LINT_CMD with commands from autopilot.json (omit if disabled)
+
+### Execution
+
+After creating the loop state file, execute the entropy cleanup cycle directly. The stop-hook handles iteration.
 
 ## Stuck Handling
 
