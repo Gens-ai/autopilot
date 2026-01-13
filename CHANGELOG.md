@@ -2,6 +2,31 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-13
+
+### Added
+- **Built-in loop mechanism** - Autopilot now includes its own stop-hook, eliminating the dependency on the external ralph-loop plugin
+  - `hooks/stop-hook.sh` - Intercepts exit attempts, re-feeds prompts for iteration
+  - `hooks/hooks.json` - Hook configuration template
+  - State stored in `.autopilot/loop-state.md` with YAML frontmatter
+- **`/autopilot cancel` command** - Cancel an active hook-based loop by removing the state file
+  - Different from `/autopilot stop` which signals the run.sh wrapper
+  - Graceful cancellation - current work completes before loop exits
+- **Improved stop-hook features** (based on ralph-loop):
+  - Reads transcript path from hook input JSON (not environment variable)
+  - Uses Perl regex for robust `<promise>` tag extraction
+  - Atomic iteration increment using temp file + move pattern
+  - Supports unlimited iterations when max_iterations = 0
+  - Better system message with promise guidance
+
+### Changed
+- **No external plugin required** - Autopilot is now fully self-contained
+- **Installation** - `./install.sh` now installs hooks to `~/.claude/hooks/` and creates `~/.claude/hooks.json`
+- **Loop state location** - Now uses `.autopilot/loop-state.md` (project-local) instead of `.claude/ralph-loop.local.md`
+
+### Removed
+- **Ralph Loop plugin dependency** - No longer requires `claude plugins:install claude-plugins-official`
+
 ## 2026-01-11
 
 ### Added
