@@ -1,6 +1,8 @@
-# Autopilot: Autonomous TDD Development with Claude Code and Ralph Wiggum
+# Autopilot: Autonomous TDD Development with Claude Code
 
-A workflow for autonomous, test-driven development using Claude Code and the Ralph Loop plugin. Write a PRD, convert it to tasks, then let Claude implement everything using TDD while you sleep.
+A workflow for autonomous, test-driven development using Claude Code. Write a PRD, convert it to tasks, then let Claude implement everything using TDD while you sleep.
+
+Inspired by the [Ralph Wiggum technique](https://ghuntley.com/ralph/), autopilot includes its own built-in loop mechanism - no external plugins required.
 
 [Watch the intro video](https://www.loom.com/share/741f5db667c4485c9571dc6ec1a5a994)
 
@@ -16,7 +18,6 @@ This workflow gratefully builds on contributions from the community:
 ## Requirements
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with an active subscription
-- [Ralph Loop Plugin](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ralph-loop) installed
 - [jq](https://jqlang.github.io/jq/) - JSON processor (used by `autopilot` (bash) to check task status)
 - A project with feedback loops:
   - **Tests** - Any test runner (Jest, Vitest, pytest, go test, RSpec, etc.)
@@ -43,7 +44,10 @@ This creates symlinks:
 - `~/.claude/commands/tasks.md` → repo (slash command)
 - `~/.claude/commands/autopilot.md` → repo (slash command)
 - `~/.claude/AGENTS.md` → repo
-- `~/.local/bin/autopilot` → repo/`autopilot` (terminal command)
+- `~/.claude/hooks/autopilot-stop-hook.sh` → repo (loop mechanism)
+- `~/.local/bin/autopilot` → repo/`run.sh` (terminal command)
+
+The install script also creates `~/.claude/hooks.json` with the stop-hook configuration if it doesn't exist.
 
 Updates to the repo are automatically available (just `git pull`).
 
@@ -52,21 +56,11 @@ Updates to the repo are automatically available (just `git pull`).
 export PATH="$HOME/.local/bin:$PATH"  # Add to ~/.bashrc or ~/.zshrc
 ```
 
-### 3. Install Claude plugins
-
-```bash
-claude plugins:install claude-plugins-official
-```
-
-This installs the official Anthropic plugin collection, which includes:
-- **ralph-loop** - Runs Claude in a loop for autonomous execution
-- **code-simplifier** - Refactors code for clarity during TDD refactor phase
-
-### 4. Restart Claude Code
+### 3. Restart Claude Code
 
 Start a new Claude Code session for the commands to become available.
 
-### 5. Verify installation
+### 4. Verify installation
 
 ```bash
 # These commands should now be available:
@@ -160,10 +154,11 @@ claude --dangerously-skip-permissions
 ```
 
 **How it works:**
-1. Invokes Ralph Loop with your task file
+1. Creates a loop state file with the task prompt
 2. Claude works through requirements sequentially
-3. Context accumulates (Claude remembers previous work)
-4. Continues until max iterations or all requirements done
+3. The stop-hook intercepts exit attempts and re-feeds the prompt
+4. Context accumulates (Claude remembers previous work)
+5. Continues until COMPLETE is output or max iterations reached
 
 **Options:**
 ```bash
@@ -322,7 +317,7 @@ Pass an optional number `N` to override the default iterations from `autopilot.j
 
 ### Context and State Management
 
-When using `/autopilot` directly, Ralph Loop runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
+When using `/autopilot` directly, the built-in loop mechanism runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
 
 **To avoid context limits, use `autopilot` (bash)** which starts fresh sessions for each requirement. See [Two Ways to Run Autopilot](#two-ways-to-run-autopilot) above.
 
@@ -519,6 +514,9 @@ autopilot/                    # This repo (source of truth)
 │   ├── autopilot.md         # /autopilot command
 │   ├── init.md              # /autopilot init command
 │   └── analyze.md           # /autopilot analyze command
+├── hooks/
+│   ├── stop-hook.sh         # Loop mechanism (intercepts exit, re-feeds prompt)
+│   └── hooks.json           # Hook configuration template
 ├── examples/
 │   ├── brainstorm.md        # Example feature brainstorm
 │   ├── prd-user-auth.md     # Example PRD document
@@ -541,6 +539,9 @@ autopilot/                    # This repo (source of truth)
 │   ├── autopilot.md → repo
 │   ├── init.md → repo
 │   └── analyze.md → repo
+├── hooks/
+│   └── autopilot-stop-hook.sh → repo  # Loop mechanism
+├── hooks.json               # Hook configuration (created by install.sh)
 └── AGENTS.md → repo
 
 your-project/                # Generated during workflow
@@ -662,7 +663,7 @@ You can edit `autopilot.json` directly to:
 - **Start with HITL**: Watch the first few iterations before going AFK
 - **Approve tools once**: When prompted, choose "Always allow" for the session
 - **Review commits**: Check git history when you return
-- **Use `/cancel-ralph`**: Stop the loop if needed
+- **Stop gracefully**: Use `/autopilot stop` or Ctrl+C to stop the loop
 - **Keep PRDs small**: Smaller scope = better results
 
 ## Troubleshooting
@@ -671,9 +672,16 @@ You can edit `autopilot.json` directly to:
 
 If you cancel mid-run, the stop hook may fire multiple times as iterations unwind. This is normal - just wait for it to settle.
 
-### Ralph not finding tasks
+### Loop not starting
 
-Ensure the task file path is correct and the file exists. Ralph reads the file at the start of each iteration.
+Ensure the hooks are installed correctly:
+1. Check that `~/.claude/hooks/autopilot-stop-hook.sh` exists
+2. Check that `~/.claude/hooks.json` includes the autopilot stop hook
+3. Re-run `./install.sh` if needed
+
+### Task file not found
+
+Ensure the task file path is correct and the file exists. The task file is read at the start of each iteration.
 
 ### Tests not running
 
@@ -705,7 +713,10 @@ Remove the symlinks:
 
 ```bash
 rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.local/bin/autopilot
+rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
+
+You may also want to remove the autopilot entry from `~/.claude/hooks.json` if you have other hooks configured.
 
 Then delete the repo folder.
 

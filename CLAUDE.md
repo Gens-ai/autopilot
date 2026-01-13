@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Autopilot is a workflow toolkit for autonomous Test-Driven Development using Claude Code and the Ralph Loop plugin. The typical workflow:
+Autopilot is a workflow toolkit for autonomous Test-Driven Development using Claude Code. It includes a built-in loop mechanism (stop-hook) that enables iterative execution without external dependencies. The typical workflow:
 
 1. `/prd feature-name` → Generate human-readable PRD via clarifying questions
 2. `/tasks prd-file.md` → Convert PRD to machine-readable JSON task file
-3. `/autopilot tasks.json` → Ralph Loop executes TDD cycles autonomously
+3. `/autopilot tasks.json` → Execute TDD cycles autonomously via built-in loop
 
 ## Architecture
 
@@ -19,10 +19,15 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 - `init.md` - Project configuration wizard, creates `autopilot.json`
 - `analyze.md` - Post-session analytics analysis, generates improvement suggestions
 
+**Hooks** (`hooks/*.sh`) provide the loop mechanism:
+- `stop-hook.sh` - Intercepts exit attempts, re-feeds the prompt for iteration
+- Installed to `~/.claude/hooks/autopilot-stop-hook.sh`
+
 **Supporting Files**:
 - `autopilot.schema.json` - Validates `autopilot.json` structure
 - `autopilot.template.json` - Starting point with null values for init to populate
 - `AGENTS.md` - TDD guidelines, symlinked to `~/.claude/` for cross-project access
+- `run.sh` - Token-frugal bash wrapper for fresh sessions per requirement
 
 **Generated in User Projects**:
 - `autopilot.json` - Feedback loops, iterations, project conventions
@@ -32,7 +37,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 ## Key Concepts
 
-**Ralph Loop**: The `ralph-loop:ralph-loop` skill runs Claude in a loop with a completion promise. Context accumulates between iterations. Autopilot passes structured prompts with `--completion-promise COMPLETE --max-iterations N`.
+**Loop Mechanism**: The built-in stop-hook (`hooks/stop-hook.sh`) intercepts Claude's exit attempts and re-feeds the prompt for iteration. State is stored in `.autopilot/loop-state.md` with iteration count, max iterations, and completion promise. When Claude outputs COMPLETE or reaches max iterations, the loop exits.
 
 **Feedback Loops**: Commands run before each commit (typecheck, tests, lint). Configured in `autopilot.json`. Claude must not commit if any fail.
 
@@ -40,7 +45,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 **Stuck Handling**: If the same task fails 3 consecutive iterations, mark it `stuck: true` with a `blockedReason` and move to the next task.
 
-**Token Frugality**: Context accumulates within Ralph Loop sessions. Default iterations are low (10-15). Always read `*-notes.md` first. Use targeted file reads. Restart sessions frequently.
+**Token Frugality**: Context accumulates within loop sessions. Default iterations are low (10-15). Always read `*-notes.md` first. Use targeted file reads. Use `run.sh` for fresh sessions per requirement.
 
 **Code Simplifier**: The `code-simplifier` agent (via Task tool) runs during TDD refactor phase to improve clarity while preserving functionality.
 
@@ -114,9 +119,9 @@ Notes files maintain state between sessions:
 
 This repo has no build system or tests - it's pure markdown documentation. Changes are immediately available after `git pull`.
 
-**Installation**: `./install.sh` creates symlinks to `~/.claude/commands/` and `~/.claude/AGENTS.md`
+**Installation**: `./install.sh` creates symlinks to `~/.claude/commands/`, `~/.claude/hooks/`, and `~/.claude/AGENTS.md`
 
-**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md`
+**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh`
 
 ## Examples
 
