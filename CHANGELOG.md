@@ -5,6 +5,26 @@ All notable changes to Autopilot will be documented in this file.
 ## 2026-01-13
 
 ### Added
+- **Quick Start guide** - New 5-minute getting started section with decision tree for choosing execution method
+- **Expanded troubleshooting** - 15+ common issues with detailed solutions (was 4 items)
+- **Monorepo examples** - `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json`
+- **Mode: Metrics** - New command `/autopilot metrics` (alias for analyze with aggregation focus)
+- **Dependency validation** - `run.sh` now checks for `jq` and `claude` CLI before running
+- **JSON validation** - `run.sh` validates task file is valid JSON with requirements array
+- **Progress visibility** - `run.sh` shows completed/stuck counts after each session
+
+### Fixed
+- **Iterations mismatch** - `init.md` now uses correct defaults (15/10/15/10) matching template and docs
+
+### Improved
+- **Error messages** - Configuration errors now include actionable fix instructions
+- **Task file errors** - Better messages with common locations and how to generate
+
+---
+
+## 2026-01-13 (earlier)
+
+### Added
 - **Built-in loop mechanism** - Autopilot now includes its own stop-hook, eliminating the dependency on the external ralph-loop plugin
   - `hooks/stop-hook.sh` - Intercepts exit attempts, re-feeds prompts for iteration
   - `hooks/hooks.json` - Hook configuration template
