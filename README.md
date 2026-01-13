@@ -303,6 +303,8 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 | Command | Description |
 |---------|-------------|
 | `/autopilot init` | Initialize project configuration (one-time setup) |
+| `/autopilot stop` | Stop run.sh wrapper gracefully |
+| `/autopilot cancel` | Cancel hook-based loop (remove state file) |
 | `/autopilot file.json [N]` | TDD task completion (default: 15 iterations) |
 | `/autopilot file.json --start-from 5` | Resume from requirement ID 5 |
 | `/autopilot rollback 3` | Rollback to before requirement 3 started |
@@ -663,7 +665,8 @@ You can edit `autopilot.json` directly to:
 - **Start with HITL**: Watch the first few iterations before going AFK
 - **Approve tools once**: When prompted, choose "Always allow" for the session
 - **Review commits**: Check git history when you return
-- **Stop gracefully**: Use `/autopilot stop` or Ctrl+C to stop the loop
+- **Stop the wrapper**: Use `/autopilot stop` to stop run.sh, or Ctrl+C in that terminal
+- **Cancel the loop**: Use `/autopilot cancel` to stop the hook-based loop mid-session
 - **Keep PRDs small**: Smaller scope = better results
 
 ## Troubleshooting

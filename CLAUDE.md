@@ -109,6 +109,8 @@ Notes files maintain state between sessions:
 | Mode | Trigger | Purpose |
 |------|---------|---------|
 | init | `/autopilot init` | Detect project config, create `autopilot.json` |
+| stop | `/autopilot stop` | Signal run.sh wrapper to exit gracefully |
+| cancel | `/autopilot cancel` | Remove loop state file to cancel hook-based loop |
 | tasks | `/autopilot file.json` | TDD task completion from JSON file |
 | tests | `/autopilot tests [%]` | Increase test coverage to target |
 | lint | `/autopilot lint` | Fix lint errors one by one |

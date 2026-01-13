@@ -14,6 +14,7 @@ This prompt is structured in phases:
 ```
 /autopilot init                             # Initialize project configuration
 /autopilot stop                             # Stop run.sh loop gracefully
+/autopilot cancel                           # Cancel hook-based loop
 /autopilot <file.json> [max-iterations]    # TDD task completion mode (default)
 /autopilot tests [target%] [max-iterations] # Test coverage mode
 /autopilot lint [max-iterations]            # Linting mode
@@ -108,13 +109,14 @@ Based on the argument ($ARGUMENTS), determine the mode:
 
 1. **If argument is `init`** → Run `/autopilot init` command (invoke the init.md command)
 2. **If argument is `stop`** → Stop mode (signal run.sh to exit)
-3. **If argument ends with `.json` or `.md`** → TDD task completion mode
-4. **If argument starts with `tests`** → Test coverage mode
-5. **If argument starts with `lint`** → Linting mode
-6. **If argument starts with `entropy`** → Entropy/cleanup mode
-7. **If argument starts with `rollback`** → Rollback mode
-8. **If argument is `metrics`** → Metrics report mode
-9. **If argument is `analyze`** → Session analytics mode
+3. **If argument is `cancel`** → Cancel mode (remove loop state file)
+4. **If argument ends with `.json` or `.md`** → TDD task completion mode
+5. **If argument starts with `tests`** → Test coverage mode
+6. **If argument starts with `lint`** → Linting mode
+7. **If argument starts with `entropy`** → Entropy/cleanup mode
+8. **If argument starts with `rollback`** → Rollback mode
+9. **If argument is `metrics`** → Metrics report mode
+10. **If argument is `analyze`** → Session analytics mode
 
 ### 0d. Analytics Initialization
 
@@ -184,6 +186,32 @@ Steps:
 7. Tell the user:
    ```
    Stop signal sent to autopilot (PID $PID). The session will terminate shortly.
+   ```
+
+## Mode: Cancel
+
+For `cancel` argument. Cancels an active hook-based loop by removing the state file.
+
+**Do not check for autopilot.json** - this mode should work regardless of configuration.
+
+Steps:
+1. Check if `.autopilot/loop-state.md` exists
+2. If it does not exist, tell the user:
+   ```
+   No active autopilot loop found.
+
+   If you're trying to stop the run.sh wrapper, use:
+     /autopilot stop
+   Or press Ctrl+C in the terminal running the wrapper.
+   ```
+3. If it exists, read the current iteration from the YAML frontmatter
+4. Delete the file: `rm .autopilot/loop-state.md`
+5. Tell the user:
+   ```
+   Autopilot loop canceled at iteration N.
+
+   The loop will exit on the next iteration attempt.
+   Note: Any work in progress will complete before the loop stops.
    ```
 
 ## Mode: TDD Task Completion (default)
