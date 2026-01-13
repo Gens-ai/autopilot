@@ -15,6 +15,46 @@ This workflow gratefully builds on contributions from the community:
 - [Matt Pocock](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum) — Ralph workflow tips
 - [ralph-playbook](https://github.com/ClaytonFarr/ralph-playbook) by [Clayton Farr](https://github.com/ClaytonFarr) — Additional workflow tips
 
+## Quick Start (5 minutes)
+
+**New project? Follow this flow:**
+
+```
+1. Install autopilot          → ./install.sh (one-time)
+2. Initialize your project    → /autopilot init
+3. Write a PRD                 → /prd "add user login feature"
+4. Generate tasks              → /tasks docs/tasks/prds/user-login.md
+5. Enable sandbox              → /sandbox
+6. Run autopilot               → autopilot docs/tasks/prds/user-login.json
+```
+
+**Already have a task file?**
+
+```bash
+# Recommended: Fresh context per requirement (for 5+ requirements)
+autopilot tasks.json
+
+# Alternative: Single session (for 1-4 requirements)
+/autopilot tasks.json
+```
+
+**Decision tree:**
+
+```
+                    How many requirements?
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+           1-4                        5+
+              │                         │
+              ▼                         ▼
+      /autopilot tasks.json    autopilot tasks.json
+      (single session,         (fresh context,
+       shared context)          token efficient)
+```
+
+**Need help?** See [Troubleshooting](#troubleshooting) or run `/autopilot --help`.
+
 ## Requirements
 
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with an active subscription
@@ -520,11 +560,13 @@ autopilot/                    # This repo (source of truth)
 │   ├── stop-hook.sh         # Loop mechanism (intercepts exit, re-feeds prompt)
 │   └── hooks.json           # Hook configuration template
 ├── examples/
-│   ├── brainstorm.md        # Example feature brainstorm
-│   ├── prd-user-auth.md     # Example PRD document
-│   ├── tasks-user-auth.json # Example task file with TDD phases
-│   ├── notes-user-auth.md   # Example progress notes
-│   └── analytics-user-auth-session.json  # Example session analytics
+│   ├── brainstorm.md              # Example feature brainstorm
+│   ├── prd-user-auth.md           # Example PRD document
+│   ├── tasks-user-auth.json       # Example task file with TDD phases
+│   ├── notes-user-auth.md         # Example progress notes
+│   ├── analytics-user-auth-session.json  # Example session analytics
+│   ├── autopilot-monorepo.json    # Example monorepo configuration
+│   └── tasks-monorepo.json        # Example monorepo task file
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for autopilot.json
 ├── analytics.schema.json    # JSON schema for session analytics
@@ -660,6 +702,17 @@ You can edit `autopilot.json` directly to:
 }
 ```
 
+Then in your task file, scope requirements to specific packages:
+```json
+{
+  "id": "5",
+  "description": "Add user authentication API",
+  "package": "api"
+}
+```
+
+See `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json` for complete examples.
+
 ## Tips
 
 - **Start with HITL**: Watch the first few iterations before going AFK
@@ -684,7 +737,11 @@ Ensure the hooks are installed correctly:
 
 ### Task file not found
 
-Ensure the task file path is correct and the file exists. The task file is read at the start of each iteration.
+Ensure the task file path is correct and the file exists. Common locations:
+- `docs/tasks/prds/<feature>.json`
+- `tasks/<feature>.json`
+
+Run `/tasks <prd-file.md>` to generate a task file from a PRD.
 
 ### Tests not running
 
@@ -709,6 +766,130 @@ golangci-lint run     # lint
 ```
 
 Claude will discover and use whatever commands are appropriate for your project.
+
+### Missing jq dependency
+
+If you see "jq: command not found" when running `autopilot` (bash wrapper):
+
+```bash
+# macOS
+brew install jq
+
+# Ubuntu/Debian
+sudo apt-get install jq
+
+# Fedora
+sudo dnf install jq
+
+# Arch
+sudo pacman -S jq
+```
+
+### Tests fail with "ECONNREFUSED localhost:5432"
+
+**Symptom:** Tests fail with connection errors even though Docker/database is running.
+
+**Cause:** Claude Code's sandbox blocks Docker port forwarding.
+
+**Solution:** Set `sandbox: false` for the tests feedback loop in `autopilot.json`:
+```json
+"feedbackLoops": {
+  "tests": {
+    "command": "npm test",
+    "sandbox": false
+  }
+}
+```
+
+### Pre-existing test failures
+
+**Symptom:** Autopilot won't commit because tests were already failing before you started.
+
+**Solution:** Configure a baseline in `autopilot.json`:
+```json
+{
+  "baseline": {
+    "tests": { "failingTests": ["flaky-test-name"] },
+    "lint": { "errorCount": 5 }
+  }
+}
+```
+
+Autopilot will only fail on NEW errors beyond the baseline. Ideally, fix pre-existing failures before using autopilot.
+
+### Session interrupted mid-requirement
+
+**Symptom:** Claude exited or crashed while working on a requirement.
+
+**Recovery:**
+1. Check the notes file (`*-notes.md`) for last known state
+2. Check git log for any partial commits
+3. If needed, rollback: `/autopilot rollback <requirement-id>`
+4. Resume: `/autopilot tasks.json --start-from <requirement-id>`
+
+### Circular dependencies between requirements
+
+**Symptom:** Requirements depend on each other and none can start.
+
+**Solution:** Review your task file and break the cycle:
+1. Identify the circular chain (A → B → C → A)
+2. Find which requirement can be made independent
+3. Remove or change the `dependsOn` field to break the cycle
+4. Re-run autopilot
+
+### Requirement stuck but not obviously broken
+
+**Symptom:** A requirement is marked `stuck: true` but the error isn't clear.
+
+**Debugging steps:**
+1. Read the `blockedReason` in the task JSON
+2. Check the notes file for detailed error logs
+3. Check analytics files in `docs/tasks/analytics/` for error patterns
+4. Try running the test command manually to reproduce
+5. Use `/autopilot rollback <id>` to reset and try again with modifications
+
+### Context limits reached
+
+**Symptom:** Claude's responses degrade or it starts forgetting previous work.
+
+**Solutions:**
+1. Use `autopilot` (bash wrapper) instead of `/autopilot` for automatic fresh context
+2. Add `--batch 1` to complete one requirement per session
+3. Break large task files into smaller ones (5-7 requirements each)
+4. Restart Claude Code and resume with `--start-from`
+
+### Invalid test detected (test passes before implementation)
+
+**Symptom:** Requirement marked `invalidTest: true` in the task JSON.
+
+**Causes:**
+1. Feature already exists in the codebase
+2. Test isn't actually testing the new behavior
+3. Test assertion is incorrect
+
+**Solution:** Review the test, fix it, then clear `invalidTest` and `invalidTestReason` from the JSON to retry.
+
+### Thrashing detected
+
+**Symptom:** Same error repeating multiple times, requirement marked stuck.
+
+**Common causes and fixes:**
+
+| Error Pattern | Cause | Fix |
+|--------------|-------|-----|
+| `ECONNREFUSED` | Sandbox blocking ports | Set `sandbox: false` |
+| `Cannot find module` | Missing dependency | Run `npm install` |
+| `ETIMEOUT` | Network unavailable | Check external services |
+| Same assertion | Logic error | Re-read requirement |
+
+### Analytics not generating
+
+**Symptom:** No files appearing in `docs/tasks/analytics/`.
+
+**Check:**
+1. Ensure `analytics.enabled: true` in `autopilot.json`
+2. Create the directory: `mkdir -p docs/tasks/analytics`
+3. Check directory permissions
 
 ## Uninstall
 

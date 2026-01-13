@@ -125,6 +125,28 @@ This repo has no build system or tests - it's pure markdown documentation. Chang
 
 **Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh`
 
+## Commit Guidelines
+
+**Always update CHANGELOG.md** when making changes to this repository:
+
+1. Add entries under the current date section (create one if needed)
+2. Organize by type: `### Added`, `### Changed`, `### Fixed`, `### Removed`
+3. Use bold for feature names: `- **Feature name** - Description`
+4. Reference related files when helpful
+
+**Commit message format:**
+- `feat:` - New features or capabilities
+- `fix:` - Bug fixes
+- `docs:` - Documentation changes (including CHANGELOG)
+- `refactor:` - Code restructuring without behavior change
+
+Example workflow:
+```
+1. Make changes to files
+2. Update CHANGELOG.md with what changed
+3. Commit all changes together
+```
+
 ## Examples
 
 The `examples/` directory contains reference files:
