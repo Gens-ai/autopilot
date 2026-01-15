@@ -288,6 +288,8 @@ If same task fails 3 iterations then add stuck true with blockedReason and ADD A
 Update TASKFILE-notes.md after each requirement with Current State section and list files modified for this requirement.
 
 COMPLETION_INSTRUCTION
+
+STOP_SIGNAL_INSTRUCTION
 ```
 
 Replace:
@@ -299,6 +301,7 @@ Replace:
 - START_FROM_INSTRUCTION with `Skip requirements with id less than START_ID.` if --start-from was specified, otherwise remove it
 - BATCH_INSTRUCTION with `Stop after completing BATCH_COUNT requirements and output COMPLETE.` if --batch was specified, otherwise remove it
 - COMPLETION_INSTRUCTION with `Output COMPLETE after completing BATCH_COUNT requirements.` if --batch was specified, otherwise `Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies.`
+- STOP_SIGNAL_INSTRUCTION with `When ALL requirements are complete (passes true, stuck true, or invalidTest true for every requirement), write the file .autopilot/stop-signal with content "done" to signal run.sh to exit.`
 
 ### Execution
 

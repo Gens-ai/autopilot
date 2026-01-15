@@ -9,6 +9,7 @@ All notable changes to Autopilot will be documented in this file.
   - Example: `autopilot tasks.json --model sonnet` for faster, cheaper runs
   - Example: `autopilot tasks.json --model haiku --batch 5` for maximum speed
 - **Debug logging** - Stop-hook includes DEBUG statements for troubleshooting completion detection
+- **Sentinel stop file** - Autopilot writes `.autopilot/stop-signal` when all requirements complete, signaling `run.sh` to exit
 
 ### Fixed
 - **Loop termination** - Stop-hook now sends SIGTERM to parent Claude process when complete, ensuring Claude actually exits (previously just returned "allow" which didn't force termination)

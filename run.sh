@@ -185,12 +185,25 @@ fi
 echo $$ > "$PID_FILE"
 trap 'rm -f "$PID_FILE"' EXIT
 
-# Function to check for stop signal
+# Sentinel file for stop signal from autopilot command
+STOP_SIGNAL_FILE=".autopilot/stop-signal"
+
+# Clean up any stale stop signal file from previous runs
+rm -f "$STOP_SIGNAL_FILE"
+
+# Function to check for stop signal (either SIGUSR1 or sentinel file)
 check_stop() {
     if [[ "$STOP_REQUESTED" == "true" ]]; then
         echo ""
-        echo -e "${YELLOW}Stop signal received${NC}"
+        echo -e "${YELLOW}Stop signal received (SIGUSR1)${NC}"
         echo -e "${YELLOW}Stopping autopilot loop...${NC}"
+        return 0
+    fi
+    if [[ -f "$STOP_SIGNAL_FILE" ]]; then
+        echo ""
+        echo -e "${GREEN}Stop signal received (sentinel file)${NC}"
+        echo -e "${GREEN}Autopilot requested exit.${NC}"
+        rm -f "$STOP_SIGNAL_FILE"
         return 0
     fi
     return 1
@@ -304,55 +317,9 @@ while true; do
         COMPLETED_BEFORE=$(count_completed)
         STUCK_BEFORE=$(count_stuck)
 
-        # Run Claude in background so we can monitor for completion
-        claude $CLAUDE_OPTS "$AUTOPILOT_CMD" &
-        CLAUDE_PID=$!
-
-        # Monitor for stop signal OR batch completion while Claude is running
-        # Batch completion detected by: completed count increased by BATCH_SIZE
-        LAST_CHECK_COMPLETED=$COMPLETED_BEFORE
-        BATCH_PROGRESS=0
-        IDLE_SECONDS=0
-
-        while kill -0 "$CLAUDE_PID" 2>/dev/null; do
-            # Check for manual stop request
-            if [[ "$STOP_REQUESTED" == "true" ]]; then
-                echo ""
-                echo -e "${YELLOW}Stop signal received - terminating session...${NC}"
-                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                wait "$CLAUDE_PID" 2>/dev/null || true
-                print_status
-                echo ""
-                echo -e "${GREEN}run.sh stopped${NC}"
-                exit 0
-            fi
-
-            # Check task JSON for progress
-            CURRENT_COMPLETED=$(count_completed)
-            CURRENT_STUCK=$(count_stuck)
-            NEW_PROGRESS=$((CURRENT_COMPLETED + CURRENT_STUCK - COMPLETED_BEFORE - STUCK_BEFORE))
-
-            # Detect batch completion: progress made equals batch size
-            if [[ "$NEW_PROGRESS" -ge "$BATCH_SIZE" ]]; then
-                # Give Claude a moment to finish any final output
-                sleep 3
-                echo ""
-                echo -e "${GREEN}Batch complete ($NEW_PROGRESS requirement(s)) - terminating for fresh context...${NC}"
-                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                sleep 1
-                # Force kill if still running
-                kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
-                # Clean up state file
-                rm -f ".autopilot/loop-state.md"
-                break
-            fi
-
-            sleep 2
-        done
-
-        # Wait for Claude to finish and get exit code
-        CLAUDE_EXIT=0
-        wait "$CLAUDE_PID" || CLAUDE_EXIT=$?
+        # Run Claude in foreground - user watches the full TUI
+        claude $CLAUDE_OPTS "$AUTOPILOT_CMD"
+        CLAUDE_EXIT=$?
 
         echo ""
 
@@ -378,6 +345,12 @@ while true; do
         fi
         if [[ "$COMPLETED_THIS_SESSION" -eq 0 && "$STUCK_THIS_SESSION" -eq 0 ]]; then
             echo -e "${YELLOW}  No progress this session (may need manual intervention)${NC}"
+        fi
+
+        # Check for stop signal after session completes
+        if check_stop; then
+            print_status
+            break
         fi
     fi
 

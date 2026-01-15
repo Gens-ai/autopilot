@@ -183,9 +183,9 @@ autopilot tasks.json --dry-run    # Preview without executing
 
 **Stopping autopilot:**
 
-To gracefully stop a running session, run `/autopilot stop` from another Claude Code session. This reads the PID from `.autopilot.pid` and sends `SIGUSR1` to terminate the script cleanly.
+Autopilot stops automatically when all requirements are complete—it writes `.autopilot/stop-signal` which tells `run.sh` to exit.
 
-Alternatively, press `Ctrl+C` in the terminal running `autopilot`.
+To stop manually, run `/autopilot stop` from another Claude Code session (sends `SIGUSR1` to the PID in `.autopilot.pid`), or press `Ctrl+C` in the terminal.
 
 ### Option 2: `/autopilot` Slash Command
 
