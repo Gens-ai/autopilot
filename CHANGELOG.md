@@ -2,6 +2,17 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-15
+
+### Fixed
+- **Loop termination** - Stop-hook now sends SIGTERM to parent Claude process when complete, ensuring Claude actually exits (previously just returned "allow" which didn't force termination)
+- **Batch completion detection** - `run.sh` now monitors task JSON for progress and terminates Claude when batch size is reached, avoiding context window exhaustion
+
+### Added
+- **Debug logging** - Stop-hook includes DEBUG statements for troubleshooting completion detection
+
+---
+
 ## 2026-01-13
 
 ### Added

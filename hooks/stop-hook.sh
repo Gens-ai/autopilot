@@ -2,8 +2,9 @@
 #
 # stop-hook.sh - Autopilot loop mechanism
 #
-# This hook intercepts Claude's exit attempts and re-feeds the prompt
-# to create an iterative TDD loop with context accumulation.
+# This hook intercepts Claude's stop events and either:
+# 1. Blocks exit and re-feeds the prompt (continues TDD loop)
+# 2. Forces exit when COMPLETE is detected or max iterations reached
 #
 # Based on the Ralph Loop technique but bundled with autopilot.
 #
@@ -11,8 +12,8 @@
 #   { "transcript_path": "/path/to/transcript.jsonl", ... }
 #
 # Hook Output (JSON):
-#   { "decision": "allow" } - let Claude exit
 #   { "decision": "block", "reason": "prompt", "systemMessage": "info" } - continue loop
+#   { "decision": "allow" } + SIGTERM to parent - force exit when complete
 #
 
 # Don't exit on error - we need to handle errors gracefully
@@ -56,6 +57,10 @@ fi
 if [[ "$max_iterations" -gt 0 && "$iteration" -ge "$max_iterations" ]]; then
     echo "Max iterations ($max_iterations) reached" >&2
     rm -f "$STATE_FILE"
+
+    # Force exit by sending SIGTERM to the Claude process
+    (sleep 0.5 && kill -TERM $PPID 2>/dev/null) &
+
     echo '{"decision": "allow"}'
     exit 0
 fi
@@ -64,19 +69,23 @@ fi
 TRANSCRIPT_FILE=$(echo "$HOOK_INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
 
 # Check for completion promise in the transcript
+echo "DEBUG: Checking for completion promise. TRANSCRIPT_FILE=$TRANSCRIPT_FILE, completion_promise=$completion_promise" >&2
 if [[ -n "$TRANSCRIPT_FILE" && -f "$TRANSCRIPT_FILE" && -n "$completion_promise" ]]; then
     # Read the last assistant message from JSONL transcript
     # Search last 50 lines for assistant messages
     last_message=$(tail -50 "$TRANSCRIPT_FILE" 2>/dev/null | grep '"role"[[:space:]]*:[[:space:]]*"assistant"' | tail -1 || true)
+    echo "DEBUG: last_message found: $(echo "$last_message" | head -c 200)..." >&2
 
     if [[ -n "$last_message" ]]; then
         # Extract text content from the message
         message_text=$(echo "$last_message" | jq -r '.content // .text // empty' 2>/dev/null || true)
+        echo "DEBUG: message_text length: ${#message_text}" >&2
 
         if [[ -n "$message_text" ]]; then
             # Use Perl to extract text between <promise> tags (more robust than grep)
             # This handles multiline and special characters properly
             promise_content=$(echo "$message_text" | perl -ne 'print $1 if /<promise>\s*(.*?)\s*<\/promise>/s' 2>/dev/null || true)
+            echo "DEBUG: promise_content='$promise_content'" >&2
 
             # Normalize whitespace for comparison
             promise_content=$(echo "$promise_content" | tr -s '[:space:]' ' ' | sed 's/^ *//;s/ *$//')
@@ -85,7 +94,15 @@ if [[ -n "$TRANSCRIPT_FILE" && -f "$TRANSCRIPT_FILE" && -n "$completion_promise"
             # Use literal string comparison (not glob) to check for match
             if [[ -n "$promise_content" && "$promise_content" = "$completion_promise_normalized" ]]; then
                 echo "Completion promise detected: $completion_promise" >&2
+                echo "DEBUG: PPID=$PPID, sending SIGTERM" >&2
                 rm -f "$STATE_FILE"
+
+                # Force exit by sending SIGTERM to the Claude process
+                # The hook runs as a child of Claude, so PPID is the Claude process
+                # Use nohup to ensure the signal is sent even if this script exits
+                # Small delay to allow this script to return cleanly first
+                (sleep 0.5 && kill -TERM $PPID 2>/dev/null && echo "DEBUG: SIGTERM sent to $PPID" >&2) &
+
                 echo '{"decision": "allow"}'
                 exit 0
             fi

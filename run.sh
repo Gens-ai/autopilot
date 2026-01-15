@@ -9,14 +9,16 @@
 #   ./run.sh <taskfile.json> [options]
 #
 # Options:
-#   --batch N       Complete N requirements per session (default: all)
+#   --batch N       Complete N requirements per session (default: 1)
 #   --delay N       Seconds to wait between sessions (default: 2)
+#   --model MODEL   Claude model to use (opus, sonnet, haiku, or full name)
 #   --dry-run       Show what would be done without executing
 #   --help          Show this help message
 #
 # Examples:
 #   ./run.sh docs/tasks/prds/feature.json
 #   ./run.sh docs/tasks/prds/feature.json --batch 3
+#   ./run.sh docs/tasks/prds/feature.json --model sonnet
 #   ./run.sh docs/tasks/prds/feature.json --delay 5
 
 set -e
@@ -29,9 +31,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-BATCH_SIZE=""
+BATCH_SIZE="1"  # Default: 1 requirement per session (fresh context)
 DELAY=2
 DRY_RUN=false
+MODEL=""  # Empty means use Claude's default (opus)
 TASKFILE=""
 
 # PID file for signal-based shutdown
@@ -56,6 +59,10 @@ while [[ $# -gt 0 ]]; do
             DELAY="$2"
             shift 2
             ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
@@ -66,8 +73,9 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: ./run.sh <taskfile.json> [options]"
             echo ""
             echo "Options:"
-            echo "  --batch N       Complete N requirements per session (default: all)"
+            echo "  --batch N       Complete N requirements per session (default: 1)"
             echo "  --delay N       Seconds to wait between sessions (default: 2)"
+            echo "  --model MODEL   Claude model: opus, sonnet, haiku, or full name"
             echo "  --dry-run       Show what would be done without executing"
             echo "  --help          Show this help message"
             echo ""
@@ -235,8 +243,11 @@ print_status() {
 
 # Main loop
 echo -e "${GREEN}Starting run.sh${NC}"
-echo -e "Batch size: $BATCH_SIZE requirement(s) per session"
+echo -e "Batch size: ${BATCH_SIZE} requirement(s) per session"
 echo -e "Delay between sessions: ${DELAY}s"
+if [[ -n "$MODEL" ]]; then
+    echo -e "Model: ${MODEL}"
+fi
 echo ""
 
 SESSION=0
@@ -269,6 +280,12 @@ while true; do
         AUTOPILOT_CMD="$AUTOPILOT_CMD --batch $BATCH_SIZE"
     fi
 
+    # Build Claude CLI options
+    CLAUDE_OPTS="--dangerously-skip-permissions"
+    if [[ -n "$MODEL" ]]; then
+        CLAUDE_OPTS="$CLAUDE_OPTS --model $MODEL"
+    fi
+
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
         echo "  claude --dangerously-skip-permissions \"$AUTOPILOT_CMD\""
@@ -287,12 +304,18 @@ while true; do
         COMPLETED_BEFORE=$(count_completed)
         STUCK_BEFORE=$(count_stuck)
 
-        # Run Claude in background so we can monitor for stop signal
+        # Run Claude in background so we can monitor for completion
         claude --dangerously-skip-permissions "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
 
-        # Monitor for stop signal while Claude is running
+        # Monitor for stop signal OR batch completion while Claude is running
+        # Batch completion detected by: completed count increased by BATCH_SIZE
+        LAST_CHECK_COMPLETED=$COMPLETED_BEFORE
+        BATCH_PROGRESS=0
+        IDLE_SECONDS=0
+
         while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+            # Check for manual stop request
             if [[ "$STOP_REQUESTED" == "true" ]]; then
                 echo ""
                 echo -e "${YELLOW}Stop signal received - terminating session...${NC}"
@@ -303,7 +326,28 @@ while true; do
                 echo -e "${GREEN}run.sh stopped${NC}"
                 exit 0
             fi
-            sleep 1
+
+            # Check task JSON for progress
+            CURRENT_COMPLETED=$(count_completed)
+            CURRENT_STUCK=$(count_stuck)
+            NEW_PROGRESS=$((CURRENT_COMPLETED + CURRENT_STUCK - COMPLETED_BEFORE - STUCK_BEFORE))
+
+            # Detect batch completion: progress made equals batch size
+            if [[ "$NEW_PROGRESS" -ge "$BATCH_SIZE" ]]; then
+                # Give Claude a moment to finish any final output
+                sleep 3
+                echo ""
+                echo -e "${GREEN}Batch complete ($NEW_PROGRESS requirement(s)) - terminating for fresh context...${NC}"
+                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                sleep 1
+                # Force kill if still running
+                kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                # Clean up state file
+                rm -f ".autopilot/loop-state.md"
+                break
+            fi
+
+            sleep 2
         done
 
         # Wait for Claude to finish and get exit code
@@ -337,13 +381,10 @@ while true; do
         fi
     fi
 
-    # Brief pause between sessions (only if batching)
-    if [[ -n "$BATCH_SIZE" && "$INCOMPLETE" -gt "$BATCH_SIZE" ]]; then
+    # Brief pause between sessions if more requirements remain than batch size
+    if [[ "$INCOMPLETE" -gt "$BATCH_SIZE" ]]; then
         echo -e "${BLUE}Waiting ${DELAY}s before next session...${NC}"
         sleep "$DELAY"
-    elif [[ -z "$BATCH_SIZE" ]]; then
-        # No batching - single session completes all, so exit loop
-        break
     fi
 done
 
