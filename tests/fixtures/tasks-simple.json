@@ -1,0 +1,21 @@
+{
+  "name": "Simple Test Tasks",
+  "description": "Minimal task list for testing run.sh loop mechanism",
+  "requirements": [
+    {
+      "id": "1",
+      "description": "Create a test file at test/output.txt with the content 'Hello from task 1'",
+      "passes": true
+    },
+    {
+      "id": "2",
+      "description": "Append a new line 'Modified by task 2' to test/output.txt",
+      "passes": true
+    },
+    {
+      "id": "3",
+      "description": "Delete the test file test/output.txt",
+      "passes": true
+    }
+  ]
+}

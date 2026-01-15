@@ -10,6 +10,12 @@ All notable changes to Autopilot will be documented in this file.
   - Example: `autopilot tasks.json --model haiku --batch 5` for maximum speed
 - **Debug logging** - Stop-hook includes DEBUG statements for troubleshooting completion detection
 - **Sentinel stop file** - Autopilot writes `.autopilot/stop-signal` when all requirements complete, signaling `run.sh` to exit
+- **Active session monitoring** - `run.sh` now runs Claude in background and actively monitors for completion
+  - Checks task JSON every 2 seconds for progress
+  - Detects batch completion and terminates for fresh context
+  - Idle detection: restarts after 30s idle if progress was made (prevents stale context)
+  - Timeout detection: terminates after 10 minutes with no progress (prevents stuck sessions)
+- **Test fixtures** - Added `tests/fixtures/` with minimal autopilot.json and tasks-simple.json for development testing
 
 ### Fixed
 - **Loop termination** - Stop-hook now sends SIGTERM to parent Claude process when complete, ensuring Claude actually exits (previously just returned "allow" which didn't force termination)

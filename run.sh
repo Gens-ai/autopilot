@@ -317,8 +317,88 @@ while true; do
         COMPLETED_BEFORE=$(count_completed)
         STUCK_BEFORE=$(count_stuck)
 
-        # Run Claude in foreground - user watches the full TUI
-        claude $CLAUDE_OPTS "$AUTOPILOT_CMD"
+        # Run Claude in background so we can monitor for batch completion
+        claude $CLAUDE_OPTS "$AUTOPILOT_CMD" &
+        CLAUDE_PID=$!
+
+        # Monitor for batch completion by checking task JSON
+        IDLE_TIMEOUT=600  # 10 minutes with no progress = assume stuck
+        LAST_PROGRESS=0
+        IDLE_SECONDS=0
+
+        while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+            # Check for manual stop request
+            if [[ "$STOP_REQUESTED" == "true" ]]; then
+                echo ""
+                echo -e "${YELLOW}Stop signal received - terminating session...${NC}"
+                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                wait "$CLAUDE_PID" 2>/dev/null || true
+                print_status
+                echo -e "${GREEN}run.sh stopped${NC}"
+                exit 0
+            fi
+
+            # Check for sentinel stop file
+            if [[ -f "$STOP_SIGNAL_FILE" ]]; then
+                echo ""
+                echo -e "${GREEN}All requirements complete - stopping...${NC}"
+                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                wait "$CLAUDE_PID" 2>/dev/null || true
+                rm -f "$STOP_SIGNAL_FILE"
+                print_status
+                echo -e "${GREEN}run.sh finished${NC}"
+                exit 0
+            fi
+
+            # Check task JSON for batch completion
+            CURRENT_COMPLETED=$(count_completed)
+            CURRENT_STUCK=$(count_stuck)
+            PROGRESS=$((CURRENT_COMPLETED + CURRENT_STUCK - COMPLETED_BEFORE - STUCK_BEFORE))
+
+            if [[ "$PROGRESS" -ge "$BATCH_SIZE" ]]; then
+                sleep 2  # Give Claude a moment to finish output
+                echo ""
+                echo -e "${GREEN}Batch complete ($PROGRESS requirement(s)) - terminating for fresh context...${NC}"
+                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                sleep 1
+                kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                rm -f ".autopilot/loop-state.md"
+                break
+            fi
+
+            # Track idle time - restart if progress made but now idle
+            if [[ "$PROGRESS" -gt "$LAST_PROGRESS" ]]; then
+                LAST_PROGRESS=$PROGRESS
+                IDLE_SECONDS=0
+            else
+                IDLE_SECONDS=$((IDLE_SECONDS + 2))
+                # If we made progress and now idle for 30s, restart for fresh context
+                if [[ "$PROGRESS" -gt 0 && "$IDLE_SECONDS" -ge 30 ]]; then
+                    echo ""
+                    echo -e "${GREEN}Progress made ($PROGRESS requirement(s)) - restarting for fresh context...${NC}"
+                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    sleep 1
+                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    rm -f ".autopilot/loop-state.md"
+                    break
+                fi
+                # No progress at all and idle too long = stuck
+                if [[ "$PROGRESS" -eq 0 && "$IDLE_SECONDS" -ge "$IDLE_TIMEOUT" ]]; then
+                    echo ""
+                    echo -e "${YELLOW}No progress for ${IDLE_TIMEOUT}s - terminating idle session...${NC}"
+                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    sleep 1
+                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    rm -f ".autopilot/loop-state.md"
+                    break
+                fi
+            fi
+
+            sleep 2
+        done
+
+        # Wait for Claude to finish
+        wait "$CLAUDE_PID" 2>/dev/null || true
         CLAUDE_EXIT=$?
 
         echo ""

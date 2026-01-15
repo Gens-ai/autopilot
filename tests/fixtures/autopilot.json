@@ -1,0 +1,16 @@
+{
+  "$schema": "../autopilot.schema.json",
+  "version": "1.0.0",
+  "project": {
+    "type": "test",
+    "conventions": {}
+  },
+  "feedbackLoops": {
+    "typecheck": { "enabled": false },
+    "tests": { "enabled": false },
+    "lint": { "enabled": false }
+  },
+  "iterations": {
+    "tasks": 5
+  }
+}
