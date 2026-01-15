@@ -288,7 +288,7 @@ while true; do
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
-        echo "  claude --dangerously-skip-permissions \"$AUTOPILOT_CMD\""
+        echo "  claude $CLAUDE_OPTS \"$AUTOPILOT_CMD\""
         echo ""
         echo -e "${YELLOW}Simulating completion of ${BATCH_SIZE:-all} requirement(s)...${NC}"
         # In dry run, we'd need to manually exit
@@ -305,7 +305,7 @@ while true; do
         STUCK_BEFORE=$(count_stuck)
 
         # Run Claude in background so we can monitor for completion
-        claude --dangerously-skip-permissions "$AUTOPILOT_CMD" &
+        claude $CLAUDE_OPTS "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
 
         # Monitor for stop signal OR batch completion while Claude is running

@@ -168,9 +168,12 @@ autopilot docs/tasks/prds/feature.json
 ```bash
 autopilot tasks.json              # 1 requirement per session (most frugal)
 autopilot tasks.json --batch 3    # 3 requirements per session (faster)
+autopilot tasks.json --model sonnet  # Use Sonnet instead of Opus (faster, cheaper)
 autopilot tasks.json --delay 5    # 5 second pause between sessions
 autopilot tasks.json --dry-run    # Preview without executing
 ```
+
+**Model options:** `opus` (default), `sonnet`, `haiku`, or full model names like `claude-sonnet-4-5-20250929`
 
 **When to use:**
 - Task files with 5+ requirements
@@ -721,6 +724,7 @@ See `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json` for co
 - **Stop the wrapper**: Use `/autopilot stop` to stop run.sh, or Ctrl+C in that terminal
 - **Cancel the loop**: Use `/autopilot cancel` to stop the hook-based loop mid-session
 - **Keep PRDs small**: Smaller scope = better results
+- **Use Sonnet for speed**: `--model sonnet` is faster and cheaper for straightforward tasks; save Opus for complex reasoning
 
 ## Troubleshooting
 
