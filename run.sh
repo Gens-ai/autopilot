@@ -6,10 +6,12 @@
 # Claude in a loop, completing one requirement per session.
 #
 # Usage:
-#   ./run.sh <taskfile.json> [options]
+#   ./run.sh <taskfile.json> [options]    # Task file mode
+#   ./run.sh /<command> [options]          # Command loop mode
 #
 # Options:
-#   --batch N       Complete N requirements per session (default: 1)
+#   --batch N       Complete N requirements per session (default: 1, task mode only)
+#   --max N         Maximum iterations/command runs (default: 10, command mode only)
 #   --delay N       Seconds to wait between sessions (default: 2)
 #   --model MODEL   Claude model to use (opus, sonnet, haiku, or full name)
 #   --dry-run       Show what would be done without executing
@@ -20,6 +22,8 @@
 #   ./run.sh docs/tasks/prds/feature.json --batch 3
 #   ./run.sh docs/tasks/prds/feature.json --model sonnet
 #   ./run.sh docs/tasks/prds/feature.json --delay 5
+#   ./run.sh /my-command --max 5
+#   ./run.sh /review-pr 123 --max 3
 
 set -e
 
@@ -32,10 +36,14 @@ NC='\033[0m' # No Color
 
 # Default values
 BATCH_SIZE="1"  # Default: 1 requirement per session (fresh context)
+MAX_ITERATIONS=10  # Default: 10 iterations for command mode
 DELAY=2
 DRY_RUN=false
 MODEL=""  # Empty means use Claude's default (opus)
 TASKFILE=""
+COMMAND=""  # Slash command for command loop mode
+COMMAND_ARGS=""  # Arguments for the slash command
+MODE="task"  # "task" or "command"
 
 # PID file for signal-based shutdown
 PID_FILE=".autopilot.pid"
@@ -55,6 +63,10 @@ while [[ $# -gt 0 ]]; do
             BATCH_SIZE="$2"
             shift 2
             ;;
+        --max)
+            MAX_ITERATIONS="$2"
+            shift 2
+            ;;
         --delay)
             DELAY="$2"
             shift 2
@@ -70,30 +82,49 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "run.sh - Token-frugal wrapper for Claude Code autopilot"
             echo ""
-            echo "Usage: ./run.sh <taskfile.json> [options]"
+            echo "Usage:"
+            echo "  ./run.sh <taskfile.json> [options]    # Task file mode"
+            echo "  ./run.sh /<command> [args] [options]  # Command loop mode"
             echo ""
             echo "Options:"
-            echo "  --batch N       Complete N requirements per session (default: 1)"
+            echo "  --batch N       Complete N requirements per session (default: 1, task mode)"
+            echo "  --max N         Maximum command runs (default: 10, command mode)"
             echo "  --delay N       Seconds to wait between sessions (default: 2)"
             echo "  --model MODEL   Claude model: opus, sonnet, haiku, or full name"
             echo "  --dry-run       Show what would be done without executing"
             echo "  --help          Show this help message"
             echo ""
-            echo "This script runs Claude Code autopilot in a loop, starting a fresh"
-            echo "session for each batch of requirements. This keeps context small"
-            echo "and token usage efficient."
+            echo "Task mode runs Claude Code autopilot in a loop, starting a fresh"
+            echo "session for each batch of requirements."
+            echo ""
+            echo "Command mode runs a slash command repeatedly with fresh sessions."
+            echo "Example: ./run.sh /my-command --max 5"
             echo ""
             echo "Requirements:"
             echo "  - Claude Code CLI installed"
-            echo "  - Task file must be valid JSON with 'requirements' array"
+            echo "  - Task file must be valid JSON with 'requirements' array (task mode)"
             exit 0
             ;;
         -*)
             echo -e "${RED}Unknown option: $1${NC}"
             exit 1
             ;;
+        /*)
+            # Slash command - switch to command mode
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+                MODE="command"
+            else
+                # Additional argument for the command
+                COMMAND_ARGS="$COMMAND_ARGS $1"
+            fi
+            shift
+            ;;
         *)
-            if [[ -z "$TASKFILE" ]]; then
+            if [[ "$MODE" == "command" ]]; then
+                # Argument for the slash command
+                COMMAND_ARGS="$COMMAND_ARGS $1"
+            elif [[ -z "$TASKFILE" ]]; then
                 TASKFILE="$1"
             else
                 echo -e "${RED}Unexpected argument: $1${NC}"
@@ -105,19 +136,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check for required dependencies
-if ! command -v jq &> /dev/null; then
-    echo -e "${RED}Error: jq is required but not installed${NC}"
-    echo ""
-    echo "Install jq using your package manager:"
-    echo "  macOS:   brew install jq"
-    echo "  Ubuntu:  sudo apt-get install jq"
-    echo "  Fedora:  sudo dnf install jq"
-    echo "  Arch:    sudo pacman -S jq"
-    echo ""
-    echo "Or visit: https://jqlang.github.io/jq/download/"
-    exit 1
-fi
-
 if ! command -v claude &> /dev/null; then
     echo -e "${RED}Error: Claude Code CLI is required but not installed${NC}"
     echo ""
@@ -128,45 +146,70 @@ if ! command -v claude &> /dev/null; then
     exit 1
 fi
 
-# Validate taskfile
-if [[ -z "$TASKFILE" ]]; then
-    echo -e "${RED}Error: No task file specified${NC}"
-    echo "Usage: ./run.sh <taskfile.json> [options]"
-    exit 1
-fi
+# Mode-specific validation
+if [[ "$MODE" == "command" ]]; then
+    # Command mode validation
+    if [[ -z "$COMMAND" ]]; then
+        echo -e "${RED}Error: No command specified${NC}"
+        echo "Usage: ./run.sh /<command> [args] [options]"
+        exit 1
+    fi
+else
+    # Task mode validation - requires jq and valid task file
+    if ! command -v jq &> /dev/null; then
+        echo -e "${RED}Error: jq is required but not installed${NC}"
+        echo ""
+        echo "Install jq using your package manager:"
+        echo "  macOS:   brew install jq"
+        echo "  Ubuntu:  sudo apt-get install jq"
+        echo "  Fedora:  sudo dnf install jq"
+        echo "  Arch:    sudo pacman -S jq"
+        echo ""
+        echo "Or visit: https://jqlang.github.io/jq/download/"
+        exit 1
+    fi
 
-if [[ ! -f "$TASKFILE" ]]; then
-    echo -e "${RED}Error: Task file not found: $TASKFILE${NC}"
-    echo ""
-    echo "Common task file locations:"
-    echo "  docs/tasks/prds/<feature>.json"
-    echo "  tasks/<feature>.json"
-    echo ""
-    echo "Run '/tasks <prd-file.md>' to generate a task file from a PRD."
-    exit 1
-fi
+    if [[ -z "$TASKFILE" ]]; then
+        echo -e "${RED}Error: No task file or command specified${NC}"
+        echo "Usage:"
+        echo "  ./run.sh <taskfile.json> [options]    # Task file mode"
+        echo "  ./run.sh /<command> [args] [options]  # Command loop mode"
+        exit 1
+    fi
 
-# Validate task file is valid JSON with requirements array
-if ! jq empty "$TASKFILE" 2>/dev/null; then
-    echo -e "${RED}Error: Task file is not valid JSON: $TASKFILE${NC}"
-    echo ""
-    echo "Check for syntax errors like:"
-    echo "  - Missing commas between items"
-    echo "  - Unclosed brackets or braces"
-    echo "  - Trailing commas before closing brackets"
-    echo ""
-    echo "Validate with: jq . $TASKFILE"
-    exit 1
-fi
+    if [[ ! -f "$TASKFILE" ]]; then
+        echo -e "${RED}Error: Task file not found: $TASKFILE${NC}"
+        echo ""
+        echo "Common task file locations:"
+        echo "  docs/tasks/prds/<feature>.json"
+        echo "  tasks/<feature>.json"
+        echo ""
+        echo "Run '/tasks <prd-file.md>' to generate a task file from a PRD."
+        exit 1
+    fi
 
-if ! jq -e '.requirements' "$TASKFILE" >/dev/null 2>&1; then
-    echo -e "${RED}Error: Task file missing 'requirements' array: $TASKFILE${NC}"
-    echo ""
-    echo "Task files must have a 'requirements' array. Example:"
-    echo '  { "requirements": [{ "id": "1", "description": "..." }] }'
-    echo ""
-    echo "Run '/tasks <prd-file.md>' to generate a valid task file."
-    exit 1
+    # Validate task file is valid JSON with requirements array
+    if ! jq empty "$TASKFILE" 2>/dev/null; then
+        echo -e "${RED}Error: Task file is not valid JSON: $TASKFILE${NC}"
+        echo ""
+        echo "Check for syntax errors like:"
+        echo "  - Missing commas between items"
+        echo "  - Unclosed brackets or braces"
+        echo "  - Trailing commas before closing brackets"
+        echo ""
+        echo "Validate with: jq . $TASKFILE"
+        exit 1
+    fi
+
+    if ! jq -e '.requirements' "$TASKFILE" >/dev/null 2>&1; then
+        echo -e "${RED}Error: Task file missing 'requirements' array: $TASKFILE${NC}"
+        echo ""
+        echo "Task files must have a 'requirements' array. Example:"
+        echo '  { "requirements": [{ "id": "1", "description": "..." }] }'
+        echo ""
+        echo "Run '/tasks <prd-file.md>' to generate a valid task file."
+        exit 1
+    fi
 fi
 
 # Check if another instance is running
@@ -254,7 +297,149 @@ print_status() {
     echo -e "${BLUE}----------------------------------------${NC}"
 }
 
-# Main loop
+# Build Claude CLI options (shared between modes)
+CLAUDE_OPTS="--dangerously-skip-permissions"
+if [[ -n "$MODEL" ]]; then
+    CLAUDE_OPTS="$CLAUDE_OPTS --model $MODEL"
+fi
+
+# ============================================================================
+# COMMAND MODE LOOP
+# ============================================================================
+if [[ "$MODE" == "command" ]]; then
+    FULL_COMMAND="$COMMAND$COMMAND_ARGS"
+
+    echo -e "${GREEN}Starting run.sh (command mode)${NC}"
+    echo -e "Command: ${FULL_COMMAND}"
+    echo -e "Max iterations: ${MAX_ITERATIONS}"
+    echo -e "Delay between sessions: ${DELAY}s"
+    if [[ -n "$MODEL" ]]; then
+        echo -e "Model: ${MODEL}"
+    fi
+    echo ""
+
+    ITERATION=0
+
+    while [[ "$ITERATION" -lt "$MAX_ITERATIONS" ]]; do
+        # Check for stop signal
+        if check_stop; then
+            echo -e "${BLUE}----------------------------------------${NC}"
+            echo -e "${BLUE}Command:${NC} $FULL_COMMAND"
+            echo -e "${GREEN}Completed:${NC} $ITERATION / $MAX_ITERATIONS iterations"
+            echo -e "${BLUE}----------------------------------------${NC}"
+            break
+        fi
+
+        ITERATION=$((ITERATION + 1))
+        echo ""
+        echo -e "${BLUE}=== Iteration $ITERATION of $MAX_ITERATIONS ===${NC}"
+        echo -e "${BLUE}Running:${NC} $FULL_COMMAND"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
+            echo "  claude $CLAUDE_OPTS \"$FULL_COMMAND\""
+            echo ""
+            echo -e "${YELLOW}Simulating command execution...${NC}"
+            if [[ $ITERATION -ge 3 ]]; then
+                echo -e "${YELLOW}[DRY RUN] Stopping after 3 simulated iterations${NC}"
+                break
+            fi
+        else
+            echo -e "${BLUE}Starting Claude Code session...${NC}"
+            echo ""
+
+            # Create loop state file to instruct Claude to run command and exit
+            mkdir -p .autopilot
+            cat > .autopilot/loop-state.md << LOOPSTATE
+---
+iteration: 1
+max_iterations: 1
+completion_promise: COMPLETE
+command: $FULL_COMMAND
+---
+
+Run the slash command $FULL_COMMAND.
+
+After the command completes, immediately output COMPLETE and exit. Do not wait for user input.
+LOOPSTATE
+
+            # Run Claude with the command wrapped in autonomous instructions
+            claude $CLAUDE_OPTS "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." &
+            CLAUDE_PID=$!
+
+            # Wait for Claude to finish (stop-hook will handle exit on COMPLETE)
+            IDLE_SECONDS=0
+            while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+                if [[ "$STOP_REQUESTED" == "true" ]]; then
+                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    wait "$CLAUDE_PID" 2>/dev/null || true
+                    rm -f ".autopilot/loop-state.md"
+                    echo -e "${YELLOW}Stopped${NC}"
+                    exit 0
+                fi
+
+                # Check for sentinel stop file
+                if [[ -f "$STOP_SIGNAL_FILE" ]]; then
+                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    wait "$CLAUDE_PID" 2>/dev/null || true
+                    rm -f "$STOP_SIGNAL_FILE" ".autopilot/loop-state.md"
+                    echo -e "${GREEN}Command signaled completion${NC}"
+                    break
+                fi
+
+                # Timeout after 10 minutes of no activity
+                IDLE_SECONDS=$((IDLE_SECONDS + 2))
+                if [[ "$IDLE_SECONDS" -ge 600 ]]; then
+                    echo -e "${YELLOW}Timeout - terminating session${NC}"
+                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    sleep 1
+                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    break
+                fi
+
+                sleep 2
+            done
+
+            wait "$CLAUDE_PID" 2>/dev/null || true
+            CLAUDE_EXIT=$?
+            rm -f ".autopilot/loop-state.md"
+
+            echo ""
+            if [[ "$CLAUDE_EXIT" -eq 0 ]]; then
+                echo -e "${GREEN}Iteration $ITERATION complete${NC}"
+            else
+                echo -e "${YELLOW}Iteration $ITERATION exited with code $CLAUDE_EXIT${NC}"
+            fi
+
+            # Check for stop signal after session completes
+            if check_stop; then
+                echo -e "${BLUE}----------------------------------------${NC}"
+                echo -e "${BLUE}Command:${NC} $FULL_COMMAND"
+                echo -e "${GREEN}Completed:${NC} $ITERATION / $MAX_ITERATIONS iterations"
+                echo -e "${BLUE}----------------------------------------${NC}"
+                break
+            fi
+        fi
+
+        # Brief pause between sessions if more iterations remain
+        if [[ "$ITERATION" -lt "$MAX_ITERATIONS" ]]; then
+            echo -e "${BLUE}Waiting ${DELAY}s before next iteration...${NC}"
+            sleep "$DELAY"
+        fi
+    done
+
+    echo ""
+    echo -e "${GREEN}run.sh finished (command mode)${NC}"
+    echo -e "${BLUE}----------------------------------------${NC}"
+    echo -e "${BLUE}Command:${NC} $FULL_COMMAND"
+    echo -e "${GREEN}Completed:${NC} $ITERATION / $MAX_ITERATIONS iterations"
+    echo -e "${BLUE}----------------------------------------${NC}"
+    exit 0
+fi
+
+# ============================================================================
+# TASK MODE LOOP
+# ============================================================================
 echo -e "${GREEN}Starting run.sh${NC}"
 echo -e "Batch size: ${BATCH_SIZE} requirement(s) per session"
 echo -e "Delay between sessions: ${DELAY}s"
@@ -291,12 +476,6 @@ while true; do
     AUTOPILOT_CMD="/autopilot $TASKFILE"
     if [[ -n "$BATCH_SIZE" ]]; then
         AUTOPILOT_CMD="$AUTOPILOT_CMD --batch $BATCH_SIZE"
-    fi
-
-    # Build Claude CLI options
-    CLAUDE_OPTS="--dangerously-skip-permissions"
-    if [[ -n "$MODEL" ]]; then
-        CLAUDE_OPTS="$CLAUDE_OPTS --model $MODEL"
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then

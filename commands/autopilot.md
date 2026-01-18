@@ -19,9 +19,10 @@ This prompt is structured in phases:
 /autopilot tests [target%] [max-iterations] # Test coverage mode
 /autopilot lint [max-iterations]            # Linting mode
 /autopilot entropy [max-iterations]         # Code cleanup mode
+/autopilot /<command> [args] [--max N]      # Run slash command in loop
 ```
 
-Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10, lint: 15, entropy: 10). Pass a number to override. Lower defaults optimize for token frugality - restart sessions frequently for fresh context.
+Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10, lint: 15, entropy: 10, command: 10). Pass a number to override. Lower defaults optimize for token frugality - restart sessions frequently for fresh context.
 
 **Iteration Expectations:**
 | Mode | Default | Per Item | Typical Session |
@@ -30,6 +31,7 @@ Default max-iterations are configured in `autopilot.json` (tasks: 15, tests: 10,
 | tests | 10 | 2-3 iterations/test | 3-5 tests |
 | lint | 15 | 1-2 iterations/fix | 10-15 fixes |
 | entropy | 10 | 2-3 iterations/cleanup | 3-5 cleanups |
+| command | 10 | 1 iteration/execution | 10 command runs |
 
 For larger task files, increase iterations or use `--start-from` to resume across sessions.
 
@@ -96,9 +98,9 @@ Proceed to argument parsing and mode execution.
 ### 0b. Argument Parsing
 
 Parse `$ARGUMENTS` to extract:
-1. **Mode** - Determined by first argument (`init`, file path, `tests`, `lint`, or `entropy`)
+1. **Mode** - Determined by first argument (`init`, file path, `tests`, `lint`, `entropy`, or `/<command>`)
 2. **Max iterations** - Optional trailing number (defaults from autopilot.json)
-3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode
+3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode, command name for command mode
 4. **--start-from ID** - Optional flag to resume from a specific requirement ID (TDD mode only)
 5. **--batch N** - Complete N requirements then stop (TDD mode only, default: all)
 
@@ -114,6 +116,9 @@ Examples:
 - `/autopilot tests 80` → Test mode, 80% target, iterations from config (default: 10)
 - `/autopilot tests 80 15` → Test mode, 80% target, 15 iterations
 - `/autopilot lint 10` → Lint mode, 10 iterations
+- `/autopilot /my-command` → Command mode, run /my-command 10 times (default)
+- `/autopilot /my-command --max 5` → Command mode, run /my-command 5 times
+- `/autopilot /my-command arg1 --max 5` → Command mode with args, 5 times
 
 ### 0c. Mode Detection
 
@@ -129,6 +134,7 @@ Based on the argument ($ARGUMENTS), determine the mode:
 8. **If argument starts with `rollback`** → Rollback mode
 9. **If argument is `metrics`** → Metrics report mode
 10. **If argument is `analyze`** → Session analytics mode
+11. **If argument starts with `/`** → Command loop mode (run slash command repeatedly)
 
 ### 0d. Analytics Initialization
 
@@ -460,6 +466,61 @@ rm docs/tasks/analytics/*.json
 ```
 
 Or use `/autopilot analyze --clear` to delete all analytics files after reviewing.
+
+## Mode: Command
+
+For arguments starting with `/` (slash commands). Runs a slash command in a loop with fresh sessions.
+
+Read `autopilot.json` to get:
+- `MAXITER` default from `iterations.command` (usually 10)
+
+**Do not check for autopilot.json** - this mode should work regardless of configuration. If no config exists, use default of 10 iterations.
+
+Usage:
+```
+/autopilot /my-command                    # Run /my-command 10 times (default)
+/autopilot /my-command --max 5            # Run /my-command 5 times
+/autopilot /my-command arg1 arg2 --max 5  # Run with args, 5 times
+```
+
+**Argument parsing for command mode:**
+1. Extract the slash command (first arg starting with `/`)
+2. Look for `--max N` anywhere in arguments - this sets max iterations
+3. All other arguments are passed to the command itself
+4. If no `--max` specified, use default from `iterations.command` (10)
+
+### Loop Setup
+
+Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+
+```markdown
+---
+iteration: 1
+max_iterations: MAXITER
+completion_promise: COMPLETE
+command: COMMAND
+---
+
+Run the slash command COMMAND.
+
+After the command completes:
+1. Output <promise>COMPLETE</promise>
+2. Then type /exit to end the session
+
+Do not wait for user input. Do not offer to do more.
+
+The run.sh wrapper will start a fresh session and run the command again until max iterations reached.
+```
+
+Replace:
+- COMMAND with the full slash command including any arguments (e.g., `/my-command arg1 arg2`)
+- MAXITER with the provided number or default from `iterations.command` (10)
+
+### Execution
+
+After creating the loop state file, execute the slash command directly. Output COMPLETE after the command finishes. The run.sh wrapper handles restarting fresh sessions.
+
+**Important**: This mode is designed to work with run.sh for fresh context per iteration. When run standalone (without run.sh), it will only execute once per session.
 
 ## Mode: Test Coverage
 

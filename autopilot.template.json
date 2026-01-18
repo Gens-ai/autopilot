@@ -30,7 +30,8 @@
     "tasks": 15,
     "tests": 10,
     "lint": 15,
-    "entropy": 10
+    "entropy": 10,
+    "command": 10
   },
 
   "server": {

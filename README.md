@@ -171,6 +171,7 @@ autopilot tasks.json --batch 3    # 3 requirements per session (faster)
 autopilot tasks.json --model sonnet  # Use Sonnet instead of Opus (faster, cheaper)
 autopilot tasks.json --delay 5    # 5 second pause between sessions
 autopilot tasks.json --dry-run    # Preview without executing
+autopilot /my-command --max 5     # Run slash command 5 times (command loop mode)
 ```
 
 **Model options:** `opus` (default), `sonnet`, `haiku`, or full model names like `claude-sonnet-4-5-20250929`
@@ -355,8 +356,29 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 | `/autopilot lint [N]` | Fix all lint errors one by one (default: 15 iterations) |
 | `/autopilot entropy [N]` | Clean up code smells and dead code (default: 10 iterations) |
 | `/autopilot analyze` | Analyze session analytics for improvement suggestions |
+| `/autopilot /<command> --max N` | Run any slash command in a loop (default: 10 iterations) |
 
 Pass an optional number `N` to override the default iterations from `autopilot.json`. Lower defaults optimize for token frugality.
+
+### Command Loop Mode
+
+Run any slash command repeatedly with fresh sessions:
+
+```bash
+# Via run.sh (recommended - fresh context per iteration)
+autopilot /my-command --max 5           # Run /my-command 5 times
+autopilot /review-pr 123 --max 3        # Run /review-pr with args, 3 times
+
+# Via /autopilot directly (single session)
+/autopilot /my-command --max 5          # Run in loop within session
+```
+
+**Use cases:**
+- Repetitive tasks that benefit from fresh context each run
+- Batch processing with a custom slash command
+- Running a review or analysis command multiple times
+
+**Note:** Use `--max N` to specify iterations. Without it, defaults to 10.
 
 ## How It Works
 
@@ -627,7 +649,8 @@ The `autopilot.json` file stores project-specific settings. Created by `/autopil
     "tasks": 15,
     "tests": 10,
     "lint": 15,
-    "entropy": 10
+    "entropy": 10,
+    "command": 10
   },
   "server": {
     "type": "github",

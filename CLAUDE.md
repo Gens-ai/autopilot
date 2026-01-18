@@ -116,6 +116,28 @@ Notes files maintain state between sessions:
 | lint | `/autopilot lint` | Fix lint errors one by one |
 | entropy | `/autopilot entropy` | Clean up code smells and dead code |
 | analyze | `/autopilot analyze` | Generate suggestions from session analytics |
+| command | `/autopilot /<command>` | Run any slash command in a loop with fresh sessions |
+
+### Command Loop Mode
+
+Run any slash command repeatedly with fresh sessions:
+
+```bash
+# Via run.sh (recommended - fresh context per iteration)
+./run.sh /my-command --max 5           # Run /my-command 5 times
+./run.sh /review-pr 123 --max 3        # Run /review-pr with arg, 3 times
+
+# Via /autopilot directly (single session)
+/autopilot /my-command --max 5         # Run in loop within session
+/autopilot /gather-resources --max 100 # Run 100 times
+```
+
+**Note:** Use `--max N` to specify iterations. Without it, defaults to 10.
+
+Use cases:
+- Repetitive tasks that benefit from fresh context each run
+- Batch processing with a custom command
+- Running a review or analysis command multiple times
 
 ## Development
 
@@ -188,4 +210,4 @@ Use parallel subagents for exploration, sequential for execution.
 - `project.type` - Language/framework (nodejs, python, go, etc.)
 - `feedbackLoops.tests.command` - Test command (unless `enabled: false`)
 - `feedbackLoops.lint.command` - Lint command (unless `enabled: false`)
-- `iterations.*` - Max iterations per mode (defaults: tasks=15, tests=10, lint=15, entropy=10)
+- `iterations.*` - Max iterations per mode (defaults: tasks=15, tests=10, lint=15, entropy=10, command=10)

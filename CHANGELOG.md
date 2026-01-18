@@ -2,6 +2,23 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-18
+
+### Added
+- **Command loop mode** - Run any slash command repeatedly with fresh sessions
+  - Usage: `autopilot /my-command --max 5` or `/autopilot /my-command --max 5`
+  - Runs the command N times, starting a fresh Claude session each iteration
+  - Useful for repetitive tasks, batch processing, or running review commands multiple times
+  - Default iterations configurable via `iterations.command` in autopilot.json (default: 10)
+- **`--max N` flag** for run.sh command mode to specify iteration count
+- **`iterations.command`** configuration in autopilot.json schema and template
+
+### Changed
+- **run.sh** now supports two modes: task file mode (existing) and command loop mode (new)
+- **Argument parsing** for command mode uses explicit `--max N` to avoid ambiguity with command arguments
+
+---
+
 ## 2026-01-15
 
 ### Added
