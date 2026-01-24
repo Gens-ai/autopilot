@@ -2,6 +2,16 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-01-24
+
+### Changed
+- **Renamed `/init` to `/autopilot init`** - The init command is now namespaced under `/autopilot init` to avoid conflicting with Claude Code's native `/init` command (which creates CLAUDE.md files)
+  - File renamed from `commands/init.md` to `commands/autopilot:init.md`
+  - Symlink updated accordingly
+  - Re-run `./install.sh` to update your symlinks
+
+---
+
 ## 2026-01-18
 
 ### Added

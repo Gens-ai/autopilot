@@ -14,7 +14,7 @@ mkdir -p ~/.claude/commands
 mkdir -p ~/.claude/hooks
 
 # Symlink command files
-for cmd in prd.md tasks.md autopilot.md init.md analyze.md; do
+for cmd in prd.md tasks.md autopilot.md autopilot:init.md analyze.md; do
     if [ -L ~/.claude/commands/$cmd ]; then
         rm ~/.claude/commands/$cmd
     elif [ -f ~/.claude/commands/$cmd ]; then

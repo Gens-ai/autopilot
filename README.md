@@ -579,7 +579,7 @@ autopilot/                    # This repo (source of truth)
 │   ├── prd.md               # /prd command
 │   ├── tasks.md             # /tasks command
 │   ├── autopilot.md         # /autopilot command
-│   ├── init.md              # /autopilot init command
+│   ├── autopilot:init.md    # /autopilot init command
 │   └── analyze.md           # /autopilot analyze command
 ├── hooks/
 │   ├── stop-hook.sh         # Loop mechanism (intercepts exit, re-feeds prompt)
@@ -606,7 +606,7 @@ autopilot/                    # This repo (source of truth)
 │   ├── prd.md → repo
 │   ├── tasks.md → repo
 │   ├── autopilot.md → repo
-│   ├── init.md → repo
+│   ├── autopilot:init.md → repo
 │   └── analyze.md → repo
 ├── hooks/
 │   └── autopilot-stop-hook.sh → repo  # Loop mechanism
@@ -923,7 +923,7 @@ Autopilot will only fail on NEW errors beyond the baseline. Ideally, fix pre-exi
 Remove the symlinks:
 
 ```bash
-rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.local/bin/autopilot
+rm ~/.claude/commands/{prd,tasks,autopilot,autopilot:init,analyze}.md ~/.claude/AGENTS.md ~/.local/bin/autopilot
 rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
 
