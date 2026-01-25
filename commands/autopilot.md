@@ -1032,7 +1032,7 @@ Note: Requirements with `passes: true`, `stuck: true`, or `invalidTest: true` ar
 
 ## Code Simplifier
 
-The `code-simplifier` agent simplifies code for clarity and maintainability while preserving functionality. Use it via the Task tool with `subagent_type: code-simplifier`.
+The `code-simplifier` agent simplifies code for clarity and maintainability while preserving functionality. Use it via the Task tool with `subagent_type: code-simplifier:code-simplifier`.
 
 When to run:
 - **TDD Refactor phase**: After implementation passes tests, before committing refactor
