@@ -87,6 +87,16 @@ fi
 ln -s "$SCRIPT_DIR/run.sh" ~/.local/bin/autopilot
 echo "  Linked: run.sh → ~/.local/bin/autopilot"
 
+# Symlink cleanup.sh
+if [ -L ~/.local/bin/autopilot-cleanup ]; then
+    rm ~/.local/bin/autopilot-cleanup
+elif [ -f ~/.local/bin/autopilot-cleanup ]; then
+    echo "Backing up existing ~/.local/bin/autopilot-cleanup to autopilot-cleanup.bak"
+    mv ~/.local/bin/autopilot-cleanup ~/.local/bin/autopilot-cleanup.bak
+fi
+ln -s "$SCRIPT_DIR/cleanup.sh" ~/.local/bin/autopilot-cleanup
+echo "  Linked: cleanup.sh → ~/.local/bin/autopilot-cleanup"
+
 echo ""
 echo "Installation complete!"
 echo ""
@@ -100,6 +110,7 @@ echo "  /autopilot cancel  - Cancel hook-based loop (inside Claude)"
 echo "  /autopilot analyze - Analyze session analytics (inside Claude)"
 echo ""
 echo "  autopilot       - Token-frugal wrapper (from terminal)"
+echo "  autopilot-cleanup - Kill orphaned Claude processes (from terminal)"
 echo ""
 echo "Usage:"
 echo "  autopilot docs/tasks/prds/feature.json    # Fresh context per requirement"

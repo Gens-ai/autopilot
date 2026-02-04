@@ -14,6 +14,7 @@
 #   --max N         Maximum iterations/command runs (default: 10, command mode only)
 #   --delay N       Seconds to wait between sessions (default: 2)
 #   --model MODEL   Claude model to use (opus, sonnet, haiku, or full name)
+#   --cleanup       Kill stale Claude processes before starting
 #   --dry-run       Show what would be done without executing
 #   --help          Show this help message
 #
@@ -34,11 +35,100 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# --- Process cleanup helpers ---
+
+# Get all descendant PIDs of a process (recursive)
+get_descendants() {
+    local pid=$1
+    local children
+    children=$(pgrep -P "$pid" 2>/dev/null || true)
+    for child in $children; do
+        echo "$child"
+        get_descendants "$child"
+    done
+}
+
+# Kill a Claude session and all its child processes
+# Collects descendant PIDs before killing the parent (they reparent to init after)
+kill_session() {
+    local pid=$1
+
+    if ! kill -0 "$pid" 2>/dev/null; then
+        return 0
+    fi
+
+    # Collect all descendant PIDs BEFORE killing parent
+    # (once parent dies, children reparent to init and we lose the tree)
+    local descendants
+    descendants=$(get_descendants "$pid")
+
+    # Send SIGTERM to main process and all descendants
+    kill -TERM "$pid" 2>/dev/null || true
+    for desc in $descendants; do
+        kill -TERM "$desc" 2>/dev/null || true
+    done
+
+    # Wait for graceful shutdown (up to 5 seconds)
+    local waited=0
+    while kill -0 "$pid" 2>/dev/null && [[ $waited -lt 5 ]]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    # Force kill any survivors
+    kill -KILL "$pid" 2>/dev/null || true
+    for desc in $descendants; do
+        kill -KILL "$desc" 2>/dev/null || true
+    done
+}
+
+# Kill stale Claude/MCP processes from previous sessions
+# Only targets background processes (no controlling terminal)
+cleanup_stale_processes() {
+    local patterns="(/home/joe/.local/bin/claude|claude-mem.*mcp-server|chroma-mcp|worker-service)"
+    local count=0
+    local pids=""
+
+    while IFS= read -r line; do
+        local pid tty
+        pid=$(echo "$line" | awk '{print $2}')
+        tty=$(echo "$line" | awk '{print $7}')
+
+        # Skip processes with a controlling terminal (active sessions)
+        [[ "$tty" != "?" ]] && continue
+        # Skip our own process
+        [[ "$pid" == "$$" ]] && continue
+
+        pids="$pids $pid"
+        count=$((count + 1))
+        local cmd
+        cmd=$(echo "$line" | awk '{for(i=11;i<=NF;i++) printf "%s ", $i}' | head -c 80)
+        echo -e "  ${YELLOW}Killing${NC} PID $pid: $cmd"
+    done < <(ps aux 2>/dev/null | grep -E "$patterns" | grep -v -E "grep|run\.sh|cleanup\.sh" || true)
+
+    if [[ $count -eq 0 ]]; then
+        echo -e "${GREEN}No stale processes found${NC}"
+        return 0
+    fi
+
+    # Wait briefly, then force kill survivors
+    sleep 2
+    for pid in $pids; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+    done
+    echo -e "${GREEN}Cleaned up $count stale process(es)${NC}"
+}
+
+# --- End process cleanup helpers ---
+
 # Default values
 BATCH_SIZE="1"  # Default: 1 requirement per session (fresh context)
 MAX_ITERATIONS=10  # Default: 10 iterations for command mode
 DELAY=2
 DRY_RUN=false
+CLEANUP=false
 MODEL=""  # Empty means use Claude's default (opus)
 TASKFILE=""
 COMMAND=""  # Slash command for command loop mode
@@ -48,13 +138,14 @@ MODE="task"  # "task" or "command"
 # PID file for signal-based shutdown
 PID_FILE=".autopilot.pid"
 STOP_REQUESTED=false
+CURRENT_CLAUDE_PID=""
 
 # Signal handler for graceful shutdown
 handle_stop() {
     STOP_REQUESTED=true
 }
 
-trap handle_stop SIGUSR1
+trap handle_stop SIGUSR1 SIGINT SIGTERM
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -75,6 +166,10 @@ while [[ $# -gt 0 ]]; do
             MODEL="$2"
             shift 2
             ;;
+        --cleanup)
+            CLEANUP=true
+            shift
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
@@ -91,6 +186,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --max N         Maximum command runs (default: 10, command mode)"
             echo "  --delay N       Seconds to wait between sessions (default: 2)"
             echo "  --model MODEL   Claude model: opus, sonnet, haiku, or full name"
+            echo "  --cleanup       Kill stale Claude processes before starting"
             echo "  --dry-run       Show what would be done without executing"
             echo "  --help          Show this help message"
             echo ""
@@ -226,13 +322,33 @@ fi
 
 # Write our PID and ensure cleanup on exit
 echo $$ > "$PID_FILE"
-trap 'rm -f "$PID_FILE"' EXIT
+
+cleanup_on_exit() {
+    # Kill any running Claude session and its children
+    if [[ -n "$CURRENT_CLAUDE_PID" ]] && kill -0 "$CURRENT_CLAUDE_PID" 2>/dev/null; then
+        echo -e "\n${YELLOW}Cleaning up Claude session (PID $CURRENT_CLAUDE_PID)...${NC}" >&2
+        kill_session "$CURRENT_CLAUDE_PID"
+        wait "$CURRENT_CLAUDE_PID" 2>/dev/null || true
+    fi
+    # Sweep for any daemonized children that escaped the process tree
+    # (MCP servers started with --daemon double-fork and reparent to init)
+    cleanup_stale_processes
+    rm -f "$PID_FILE"
+}
+trap cleanup_on_exit EXIT
 
 # Sentinel file for stop signal from autopilot command
 STOP_SIGNAL_FILE=".autopilot/stop-signal"
 
 # Clean up any stale stop signal file from previous runs
 rm -f "$STOP_SIGNAL_FILE"
+
+# Run stale process cleanup if requested
+if [[ "$CLEANUP" == "true" ]]; then
+    echo -e "${BLUE}Cleaning up stale processes...${NC}"
+    cleanup_stale_processes
+    echo ""
+fi
 
 # Function to check for stop signal (either SIGUSR1 or sentinel file)
 check_stop() {
@@ -366,13 +482,15 @@ LOOPSTATE
             # Run Claude with the command wrapped in autonomous instructions
             claude $CLAUDE_OPTS "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." &
             CLAUDE_PID=$!
+            CURRENT_CLAUDE_PID=$CLAUDE_PID
 
             # Wait for Claude to finish (stop-hook will handle exit on COMPLETE)
             IDLE_SECONDS=0
             while kill -0 "$CLAUDE_PID" 2>/dev/null; do
                 if [[ "$STOP_REQUESTED" == "true" ]]; then
-                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    kill_session "$CLAUDE_PID"
                     wait "$CLAUDE_PID" 2>/dev/null || true
+                    CURRENT_CLAUDE_PID=""
                     rm -f ".autopilot/loop-state.md"
                     echo -e "${YELLOW}Stopped${NC}"
                     exit 0
@@ -380,8 +498,9 @@ LOOPSTATE
 
                 # Check for sentinel stop file
                 if [[ -f "$STOP_SIGNAL_FILE" ]]; then
-                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                    kill_session "$CLAUDE_PID"
                     wait "$CLAUDE_PID" 2>/dev/null || true
+                    CURRENT_CLAUDE_PID=""
                     rm -f "$STOP_SIGNAL_FILE" ".autopilot/loop-state.md"
                     echo -e "${GREEN}Command signaled completion${NC}"
                     break
@@ -391,9 +510,7 @@ LOOPSTATE
                 IDLE_SECONDS=$((IDLE_SECONDS + 2))
                 if [[ "$IDLE_SECONDS" -ge 600 ]]; then
                     echo -e "${YELLOW}Timeout - terminating session${NC}"
-                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                    sleep 1
-                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    kill_session "$CLAUDE_PID"
                     break
                 fi
 
@@ -402,7 +519,11 @@ LOOPSTATE
 
             wait "$CLAUDE_PID" 2>/dev/null || true
             CLAUDE_EXIT=$?
+            CURRENT_CLAUDE_PID=""
             rm -f ".autopilot/loop-state.md"
+
+            # Sweep for daemonized children that escaped kill_session
+            cleanup_stale_processes
 
             echo ""
             if [[ "$CLAUDE_EXIT" -eq 0 ]]; then
@@ -499,6 +620,7 @@ while true; do
         # Run Claude in background so we can monitor for batch completion
         claude $CLAUDE_OPTS "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
+        CURRENT_CLAUDE_PID=$CLAUDE_PID
 
         # Monitor for batch completion by checking task JSON
         IDLE_TIMEOUT=600  # 10 minutes with no progress = assume stuck
@@ -510,8 +632,9 @@ while true; do
             if [[ "$STOP_REQUESTED" == "true" ]]; then
                 echo ""
                 echo -e "${YELLOW}Stop signal received - terminating session...${NC}"
-                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                kill_session "$CLAUDE_PID"
                 wait "$CLAUDE_PID" 2>/dev/null || true
+                CURRENT_CLAUDE_PID=""
                 print_status
                 echo -e "${GREEN}run.sh stopped${NC}"
                 exit 0
@@ -521,8 +644,9 @@ while true; do
             if [[ -f "$STOP_SIGNAL_FILE" ]]; then
                 echo ""
                 echo -e "${GREEN}All requirements complete - stopping...${NC}"
-                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+                kill_session "$CLAUDE_PID"
                 wait "$CLAUDE_PID" 2>/dev/null || true
+                CURRENT_CLAUDE_PID=""
                 rm -f "$STOP_SIGNAL_FILE"
                 print_status
                 echo -e "${GREEN}run.sh finished${NC}"
@@ -538,9 +662,7 @@ while true; do
                 sleep 2  # Give Claude a moment to finish output
                 echo ""
                 echo -e "${GREEN}Batch complete ($PROGRESS requirement(s)) - terminating for fresh context...${NC}"
-                kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                sleep 1
-                kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                kill_session "$CLAUDE_PID"
                 rm -f ".autopilot/loop-state.md"
                 break
             fi
@@ -555,9 +677,7 @@ while true; do
                 if [[ "$PROGRESS" -gt 0 && "$IDLE_SECONDS" -ge 30 ]]; then
                     echo ""
                     echo -e "${GREEN}Progress made ($PROGRESS requirement(s)) - restarting for fresh context...${NC}"
-                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                    sleep 1
-                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    kill_session "$CLAUDE_PID"
                     rm -f ".autopilot/loop-state.md"
                     break
                 fi
@@ -565,9 +685,7 @@ while true; do
                 if [[ "$PROGRESS" -eq 0 && "$IDLE_SECONDS" -ge "$IDLE_TIMEOUT" ]]; then
                     echo ""
                     echo -e "${YELLOW}No progress for ${IDLE_TIMEOUT}s - terminating idle session...${NC}"
-                    kill -TERM "$CLAUDE_PID" 2>/dev/null || true
-                    sleep 1
-                    kill -0 "$CLAUDE_PID" 2>/dev/null && kill -KILL "$CLAUDE_PID" 2>/dev/null || true
+                    kill_session "$CLAUDE_PID"
                     rm -f ".autopilot/loop-state.md"
                     break
                 fi
@@ -579,6 +697,10 @@ while true; do
         # Wait for Claude to finish
         wait "$CLAUDE_PID" 2>/dev/null || true
         CLAUDE_EXIT=$?
+        CURRENT_CLAUDE_PID=""
+
+        # Sweep for daemonized children that escaped kill_session
+        cleanup_stale_processes
 
         echo ""
 

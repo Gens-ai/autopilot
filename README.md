@@ -86,6 +86,7 @@ This creates symlinks:
 - `~/.claude/AGENTS.md` → repo
 - `~/.claude/hooks/autopilot-stop-hook.sh` → repo (loop mechanism)
 - `~/.local/bin/autopilot` → repo/`run.sh` (terminal command)
+- `~/.local/bin/autopilot-cleanup` → repo/`cleanup.sh` (process cleanup)
 
 The install script also creates `~/.claude/hooks.json` with the stop-hook configuration if it doesn't exist.
 
@@ -171,6 +172,7 @@ autopilot tasks.json --batch 3    # 3 requirements per session (faster)
 autopilot tasks.json --model sonnet  # Use Sonnet instead of Opus (faster, cheaper)
 autopilot tasks.json --delay 5    # 5 second pause between sessions
 autopilot tasks.json --dry-run    # Preview without executing
+autopilot tasks.json --cleanup    # Kill stale processes before starting
 autopilot /my-command --max 5     # Run slash command 5 times (command loop mode)
 ```
 
@@ -186,7 +188,7 @@ autopilot /my-command --max 5     # Run slash command 5 times (command loop mode
 
 Autopilot stops automatically when all requirements are complete—it writes `.autopilot/stop-signal` which tells `run.sh` to exit.
 
-To stop manually, run `/autopilot stop` from another Claude Code session (sends `SIGUSR1` to the PID in `.autopilot.pid`), or press `Ctrl+C` in the terminal.
+To stop manually, run `/autopilot stop` from another Claude Code session (sends `SIGUSR1` to the PID in `.autopilot.pid`), or press `Ctrl+C` in the terminal. On exit, `run.sh` automatically kills all child processes (MCP servers, subagents, workers) to prevent orphans.
 
 ### Option 2: `/autopilot` Slash Command
 
@@ -597,6 +599,7 @@ autopilot/                    # This repo (source of truth)
 ├── analytics.schema.json    # JSON schema for session analytics
 ├── tasks.schema.json        # JSON schema for task files
 ├── run.sh                   # Token-frugal wrapper script
+├── cleanup.sh               # Kill orphaned Claude Code processes
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
 └── README.md
@@ -750,6 +753,29 @@ See `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json` for co
 - **Use Sonnet for speed**: `--model sonnet` is faster and cheaper for straightforward tasks; save Opus for complex reasoning
 
 ## Troubleshooting
+
+### Orphaned Claude processes accumulating
+
+**Symptom:** System memory fills up, new Claude sessions get `Killed`, `ps aux | grep claude` shows dozens of old processes.
+
+**Cause:** Claude Code spawns child processes (MCP servers, subagents, bun workers) that can outlive the parent session, especially when sessions are interrupted or force-killed. MCP servers started with `--daemon` double-fork and reparent to init, making them invisible to simple `kill` commands.
+
+**Automatic prevention:** `run.sh` now kills the entire process tree after every session and on exit (Ctrl+C, SIGTERM, normal exit). This includes a sweep for daemonized processes that escaped the tree.
+
+**Manual cleanup:**
+```bash
+# Kill background orphans only (safe - won't touch your interactive session)
+autopilot-cleanup
+
+# Preview what would be killed
+autopilot-cleanup --dry-run
+
+# Kill ALL Claude-related processes (including terminal-attached)
+autopilot-cleanup --all
+
+# Pre-run cleanup with autopilot
+autopilot tasks.json --cleanup
+```
 
 ### Stop hook firing repeatedly
 
@@ -923,7 +949,8 @@ Autopilot will only fail on NEW errors beyond the baseline. Ideally, fix pre-exi
 Remove the symlinks:
 
 ```bash
-rm ~/.claude/commands/{prd,tasks,autopilot,autopilot:init,analyze}.md ~/.claude/AGENTS.md ~/.local/bin/autopilot
+rm ~/.claude/commands/{prd,tasks,autopilot,autopilot:init,analyze}.md ~/.claude/AGENTS.md
+rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup
 rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
 

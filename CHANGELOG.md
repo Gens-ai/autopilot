@@ -2,6 +2,20 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-02-04
+
+### Fixed
+- **Orphaned process cleanup** - `run.sh` now kills the entire process tree (MCP servers, subagents, bun workers) when terminating Claude sessions, not just the main process. Previously, child processes would reparent to init and accumulate indefinitely, consuming memory until the system killed new sessions.
+
+### Added
+- **`kill_session()` helper** - Collects all descendant PIDs before sending SIGTERM, then force-kills survivors after 5 seconds. Prevents orphaned processes from accumulating across autopilot runs.
+- **EXIT trap cleanup** - `run.sh` now cleans up the active Claude session on any exit (normal, Ctrl+C, SIGTERM), ensuring no child processes are left behind.
+- **`--cleanup` flag** - `run.sh --cleanup` kills stale background Claude/MCP processes before starting a new run. Useful after ungraceful terminations.
+- **`cleanup.sh`** - Standalone script to find and kill orphaned Claude Code processes. Supports `--dry-run` to preview and `--all` to include terminal-attached sessions. Installed as `autopilot-cleanup` CLI command.
+- **SIGINT/SIGTERM handling** - `run.sh` now traps Ctrl+C and SIGTERM for graceful shutdown with full process tree cleanup, instead of leaving orphans.
+
+---
+
 ## 2026-01-24
 
 ### Changed

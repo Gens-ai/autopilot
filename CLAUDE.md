@@ -28,6 +28,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 - `autopilot.template.json` - Starting point with null values for init to populate
 - `AGENTS.md` - TDD guidelines, symlinked to `~/.claude/` for cross-project access
 - `run.sh` - Token-frugal bash wrapper for fresh sessions per requirement
+- `cleanup.sh` - Kills orphaned Claude Code processes (MCP servers, subagents, workers)
 
 **Generated in User Projects**:
 - `autopilot.json` - Feedback loops, iterations, project conventions
@@ -145,7 +146,16 @@ This repo has no build system or tests - it's pure markdown documentation. Chang
 
 **Installation**: `./install.sh` creates symlinks to `~/.claude/commands/`, `~/.claude/hooks/`, and `~/.claude/AGENTS.md`
 
-**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh`
+**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup`
+
+## Process Management
+
+Claude Code spawns child processes (MCP servers, subagents, bun workers) that can outlive the parent session. `run.sh` handles this with:
+
+- **`kill_session()`** - Collects all descendant PIDs before killing the parent, then SIGTERMs the entire tree. Force-kills survivors after 5 seconds.
+- **EXIT trap** - Ensures cleanup runs on any exit (normal, Ctrl+C, SIGTERM).
+- **`--cleanup` flag** - Kills stale background processes before starting: `autopilot --cleanup tasks.json`
+- **`cleanup.sh`** - Standalone cleanup: `autopilot-cleanup` (background orphans) or `autopilot-cleanup --all` (everything).
 
 ## Commit Guidelines
 
