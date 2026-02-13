@@ -153,11 +153,13 @@ autopilot docs/tasks/prds/feature.json
 
 **How it works:**
 1. Checks the task JSON for incomplete requirements
-2. Invokes `claude --dangerously-skip-permissions "/autopilot <file> --batch 1"`
+2. Invokes `claude --allowedTools ... "/autopilot <file> --batch 1"`
 3. Claude completes one requirement, then exits
 4. Script checks for remaining requirements
 5. If more remain, starts a new Claude session (fresh context)
 6. Repeats until all requirements are complete or stuck
+
+**First-time setup per project:** The first time you run `autopilot` in a new project directory, Claude Code will show a one-time workspace trust prompt ("Is this a project you created or one you trust?"). Accept it once — subsequent sessions in that directory won't prompt again.
 
 **Why fresh context matters:**
 - Claude Code's Ralph Loop accumulates context within a session

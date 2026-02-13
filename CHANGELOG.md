@@ -2,6 +2,13 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-02-13
+
+### Changed
+- **run.sh permissions** - Replaced `--dangerously-skip-permissions` with `--allowedTools` to pre-approve tools individually. This avoids the interactive bypass permissions confirmation prompt that Claude Code now shows on every session, while keeping manual Claude Code sessions fully permissioned. A one-time workspace trust prompt appears the first time `autopilot` runs in a new project directory.
+
+---
+
 ## 2026-02-04
 
 ### Fixed

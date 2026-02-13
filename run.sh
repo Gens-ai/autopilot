@@ -414,10 +414,14 @@ print_status() {
 }
 
 # Build Claude CLI options (shared between modes)
-CLAUDE_OPTS="--dangerously-skip-permissions"
+# --allowedTools: pre-approve all tools so autopilot runs without permission prompts
+# Note: workspace trust prompt appears once per project directory (accept manually first time)
+CLAUDE_OPTS=(--allowedTools 'Bash(*)' Read Edit Write Glob Grep Task Skill NotebookEdit 'WebFetch(*)' WebSearch 'mcp__*')
 if [[ -n "$MODEL" ]]; then
-    CLAUDE_OPTS="$CLAUDE_OPTS --model $MODEL"
+    CLAUDE_OPTS+=(--model "$MODEL")
 fi
+# -- separates options from positional prompt arg (--allowedTools is variadic)
+CLAUDE_OPTS+=(--)
 
 # ============================================================================
 # COMMAND MODE LOOP
@@ -453,7 +457,7 @@ if [[ "$MODE" == "command" ]]; then
 
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
-            echo "  claude $CLAUDE_OPTS \"$FULL_COMMAND\""
+            echo "  claude ${CLAUDE_OPTS[*]} \"$FULL_COMMAND\""
             echo ""
             echo -e "${YELLOW}Simulating command execution...${NC}"
             if [[ $ITERATION -ge 3 ]]; then
@@ -480,7 +484,7 @@ After the command completes, immediately output COMPLETE and exit. Do not wait f
 LOOPSTATE
 
             # Run Claude with the command wrapped in autonomous instructions
-            claude $CLAUDE_OPTS "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." &
+            claude "${CLAUDE_OPTS[@]}" "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." &
             CLAUDE_PID=$!
             CURRENT_CLAUDE_PID=$CLAUDE_PID
 
@@ -601,7 +605,7 @@ while true; do
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
-        echo "  claude $CLAUDE_OPTS \"$AUTOPILOT_CMD\""
+        echo "  claude ${CLAUDE_OPTS[*]} \"$AUTOPILOT_CMD\""
         echo ""
         echo -e "${YELLOW}Simulating completion of ${BATCH_SIZE:-all} requirement(s)...${NC}"
         # In dry run, we'd need to manually exit
@@ -618,7 +622,7 @@ while true; do
         STUCK_BEFORE=$(count_stuck)
 
         # Run Claude in background so we can monitor for batch completion
-        claude $CLAUDE_OPTS "$AUTOPILOT_CMD" &
+        claude "${CLAUDE_OPTS[@]}" "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
         CURRENT_CLAUDE_PID=$CLAUDE_PID
 
