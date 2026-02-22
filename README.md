@@ -492,12 +492,15 @@ Common thrashing patterns and fixes:
 
 Autopilot tracks per-session analytics to help identify token waste and improvement opportunities.
 
-**What's tracked:**
-- Iterations per requirement
-- Errors with type and message
+**What's tracked (by infrastructure):**
+- Requirement status (derived from task JSON)
+- Iterations per requirement (commit counts between git tags)
+- Files written (git diff between tags)
+- Session duration and efficiency score
+
+**What's tracked (by LLM, when available):**
+- Errors with type, message, and resolution
 - Thrashing events
-- Files read/written
-- TDD phase timing
 
 **Analytics files** are stored in `docs/tasks/analytics/` with names like `2026-01-10-user-auth-1.json`.
 
@@ -587,6 +590,7 @@ autopilot/                    # This repo (source of truth)
 │   └── analyze.md           # /autopilot analyze command
 ├── hooks/
 │   ├── stop-hook.sh         # Loop mechanism (intercepts exit, re-feeds prompt)
+│   ├── update-analytics.sh  # Populates analytics from git/task ground truth
 │   └── hooks.json           # Hook configuration template
 ├── examples/
 │   ├── brainstorm.md              # Example feature brainstorm
@@ -937,14 +941,17 @@ Autopilot will only fail on NEW errors beyond the baseline. Ideally, fix pre-exi
 | `ETIMEOUT` | Network unavailable | Check external services |
 | Same assertion | Logic error | Re-read requirement |
 
-### Analytics not generating
+### Analytics files empty
 
-**Symptom:** No files appearing in `docs/tasks/analytics/`.
+**Symptom:** Analytics files exist but contain `actualIterations: 0` and empty `requirements`.
+
+**Cause:** Analytics are populated by `hooks/update-analytics.sh`, which runs after each session. If it's not being called, the files stay empty.
 
 **Check:**
-1. Ensure `analytics.enabled: true` in `autopilot.json`
-2. Create the directory: `mkdir -p docs/tasks/analytics`
-3. Check directory permissions
+1. Ensure `hooks/update-analytics.sh` is executable: `chmod +x hooks/update-analytics.sh`
+2. Ensure `jq` is installed (required by the script)
+3. Ensure `analytics.enabled: true` in `autopilot.json`
+4. Run manually to test: `./hooks/update-analytics.sh <analytics-file> <task-file> $(date +%s)`
 
 ## Uninstall
 

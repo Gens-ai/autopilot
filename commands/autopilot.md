@@ -172,6 +172,8 @@ If analytics are enabled in `autopilot.json` (default: true), initialize session
 
 5. **Store path** as `ANALYTICS_FILE` for use during execution
 
+6. **Write to loop-state frontmatter**: After creating `ANALYTICS_FILE`, add `analytics_file: <ANALYTICS_FILE path>` and `task_file: <TASKFILE path>` to the `.autopilot/loop-state.md` YAML frontmatter so that the stop-hook can read them for infrastructure-level analytics updates.
+
 ---
 
 ## Phase 1: Mode Execution
@@ -254,6 +256,8 @@ Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
 iteration: 1
 max_iterations: MAXITER
 completion_promise: COMPLETE
+analytics_file: ANALYTICS_FILE_PATH
+task_file: TASKFILE_PATH
 ---
 
 Complete requirements in TASKFILE using TDD.
@@ -299,7 +303,7 @@ STOP_SIGNAL_INSTRUCTION
 ```
 
 Replace:
-- ANALYTICS_INSTRUCTION with `If analytics enabled then update ANALYTICS_FILE with requirement start time and increment actualIterations after each iteration and log errors with type and message to the requirement errors array and track filesRead and filesWritten.` if analytics are enabled, otherwise remove it
+- ANALYTICS_INSTRUCTION with `If analytics enabled and you encounter errors during TDD phases then append them to the requirement errors array in ANALYTICS_FILE with fields: attempt (number) and phase (red/green/refactor) and type (test_failure/connection_error/build_error/etc) and message (error text) and command (what was run) and resolution (how you fixed it or null if stuck). Infrastructure handles all other analytics fields automatically.` if analytics are enabled, otherwise remove it
 - THRASHING_INSTRUCTION with `Track consecutive identical errors. If the same error pattern appears THRASHING_THRESHOLD times in a row then immediately mark stuck with blockedReason containing Thrashing detected and the error pattern and set thrashing.detected true in analytics.` where THRASHING_THRESHOLD comes from autopilot.json analytics.thrashingThreshold (default: 3)
 - TASKFILE with the provided file path
 - MAXITER with the provided number or default from `iterations.tasks`
@@ -308,6 +312,8 @@ Replace:
 - BATCH_INSTRUCTION with `Stop after completing BATCH_COUNT requirements and output COMPLETE.` if --batch was specified, otherwise remove it
 - COMPLETION_INSTRUCTION with `Output COMPLETE after completing BATCH_COUNT requirements.` if --batch was specified, otherwise `Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies.`
 - STOP_SIGNAL_INSTRUCTION with `When ALL requirements are complete (passes true, stuck true, or invalidTest true for every requirement), write the file .autopilot/stop-signal with content "done" to signal run.sh to exit.`
+- ANALYTICS_FILE_PATH with the analytics file path if analytics are enabled, otherwise remove the `analytics_file:` line
+- TASKFILE_PATH with the task file path
 
 ### Execution
 

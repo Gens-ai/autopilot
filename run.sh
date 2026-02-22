@@ -28,6 +28,9 @@
 
 set -e
 
+# Resolve script directory for locating sibling scripts
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -621,6 +624,9 @@ while true; do
         COMPLETED_BEFORE=$(count_completed)
         STUCK_BEFORE=$(count_stuck)
 
+        # Track session start time for analytics
+        SESSION_START_EPOCH=$(date +%s)
+
         # Run Claude in background so we can monitor for batch completion
         claude "${CLAUDE_OPTS[@]}" "$AUTOPILOT_CMD" &
         CLAUDE_PID=$!
@@ -705,6 +711,32 @@ while true; do
 
         # Sweep for daemonized children that escaped kill_session
         cleanup_stale_processes
+
+        # --- Update analytics from ground truth ---
+        if command -v jq &>/dev/null; then
+            # Derive task name stem from TASKFILE (e.g., "user-auth" from "docs/tasks/prds/user-auth.json")
+            TASKNAME_STEM=$(basename "$TASKFILE" .json | sed 's/\.md$//')
+
+            # Read analytics directory from autopilot.json (default: docs/tasks/analytics)
+            ANALYTICS_DIR="docs/tasks/analytics"
+            if [[ -f "autopilot.json" ]]; then
+                CONFIGURED_DIR=$(jq -r '.analytics.directory // empty' autopilot.json 2>/dev/null)
+                if [[ -n "$CONFIGURED_DIR" ]]; then
+                    ANALYTICS_DIR="$CONFIGURED_DIR"
+                fi
+            fi
+
+            # Find most recent analytics file matching task name
+            if [[ -d "$ANALYTICS_DIR" ]]; then
+                ANALYTICS_FILE=$(ls -t "${ANALYTICS_DIR}/"*"${TASKNAME_STEM}"*.json 2>/dev/null | head -1 || true)
+                if [[ -n "$ANALYTICS_FILE" && -f "$ANALYTICS_FILE" ]]; then
+                    UPDATE_SCRIPT="$SCRIPT_DIR/hooks/update-analytics.sh"
+                    if [[ -x "$UPDATE_SCRIPT" ]]; then
+                        "$UPDATE_SCRIPT" "$ANALYTICS_FILE" "$TASKFILE" "$SESSION_START_EPOCH" || true
+                    fi
+                fi
+            fi
+        fi
 
         echo ""
 

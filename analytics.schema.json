@@ -78,8 +78,8 @@
             "description": "Number of iterations spent on this requirement"
           },
           "phases": {
-            "type": "object",
-            "description": "TDD phase breakdown",
+            "type": ["object", "null"],
+            "description": "Optional. TDD phase breakdown. Populated by LLM when available, null otherwise. Infrastructure does not track this field.",
             "properties": {
               "red": {
                 "type": "object",
@@ -165,9 +165,9 @@
             }
           },
           "filesRead": {
-            "type": "array",
+            "type": ["array", "null"],
             "items": { "type": "string" },
-            "description": "Files read during this requirement"
+            "description": "Optional. Files read during this requirement. Populated by LLM when available, null otherwise. Infrastructure does not track this field."
           },
           "filesWritten": {
             "type": "array",
@@ -175,8 +175,8 @@
             "description": "Files created or modified during this requirement"
           },
           "toolCalls": {
-            "type": "object",
-            "description": "Count of tool calls by type",
+            "type": ["object", "null"],
+            "description": "Optional. Count of tool calls by type. Populated by LLM when available, null otherwise. Infrastructure does not track this field.",
             "additionalProperties": { "type": "integer" }
           },
           "stuckReason": {

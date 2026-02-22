@@ -36,6 +36,12 @@ iteration=$(sed -n 's/^iteration: *//p' "$STATE_FILE" | head -1)
 max_iterations=$(sed -n 's/^max_iterations: *//p' "$STATE_FILE" | head -1)
 completion_promise=$(sed -n 's/^completion_promise: *//p' "$STATE_FILE" | head -1)
 started_at=$(sed -n 's/^started_at: *//p' "$STATE_FILE" | head -1)
+analytics_file=$(sed -n 's/^analytics_file: *//p' "$STATE_FILE" | head -1)
+task_file=$(sed -n 's/^task_file: *//p' "$STATE_FILE" | head -1)
+
+# Resolve path to update-analytics.sh (sibling of this script)
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UPDATE_ANALYTICS="$HOOK_DIR/update-analytics.sh"
 
 # Validate iteration is numeric
 if ! [[ "$iteration" =~ ^[0-9]+$ ]]; then
@@ -56,6 +62,23 @@ fi
 # Check if we've hit max iterations (0 means unlimited)
 if [[ "$max_iterations" -gt 0 && "$iteration" -ge "$max_iterations" ]]; then
     echo "Max iterations ($max_iterations) reached" >&2
+
+    # Update analytics before cleanup
+    if [[ -n "$analytics_file" && -f "$analytics_file" ]]; then
+        # Set abortReason and completedAt
+        if command -v jq &>/dev/null; then
+            TEMP_ANALYTICS=$(mktemp)
+            jq --arg reason "max_iterations_reached" \
+               --arg now "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+               '.abortReason = $reason | .completedAt = $now' \
+               "$analytics_file" > "$TEMP_ANALYTICS" && mv "$TEMP_ANALYTICS" "$analytics_file"
+        fi
+        # Call update-analytics.sh async (don't block SIGTERM path)
+        if [[ -x "$UPDATE_ANALYTICS" && -n "$task_file" ]]; then
+            ("$UPDATE_ANALYTICS" "$analytics_file" "$task_file" "" &) 2>/dev/null
+        fi
+    fi
+
     rm -f "$STATE_FILE"
 
     # Force exit by sending SIGTERM to the Claude process
@@ -95,6 +118,20 @@ if [[ -n "$TRANSCRIPT_FILE" && -f "$TRANSCRIPT_FILE" && -n "$completion_promise"
             if [[ -n "$promise_content" && "$promise_content" = "$completion_promise_normalized" ]]; then
                 echo "Completion promise detected: $completion_promise" >&2
                 echo "DEBUG: PPID=$PPID, sending SIGTERM" >&2
+
+                # Update analytics on completion
+                if [[ -n "$analytics_file" && -f "$analytics_file" ]]; then
+                    if command -v jq &>/dev/null; then
+                        TEMP_ANALYTICS=$(mktemp)
+                        jq --arg now "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+                           '.completedAt = $now' \
+                           "$analytics_file" > "$TEMP_ANALYTICS" && mv "$TEMP_ANALYTICS" "$analytics_file"
+                    fi
+                    if [[ -x "$UPDATE_ANALYTICS" && -n "$task_file" ]]; then
+                        ("$UPDATE_ANALYTICS" "$analytics_file" "$task_file" "" &) 2>/dev/null
+                    fi
+                fi
+
                 rm -f "$STATE_FILE"
 
                 # Force exit by sending SIGTERM to the Claude process
@@ -111,8 +148,8 @@ if [[ -n "$TRANSCRIPT_FILE" && -f "$TRANSCRIPT_FILE" && -n "$completion_promise"
 fi
 
 # Extract the prompt (everything after the YAML frontmatter)
-# First --- starts frontmatter, second --- ends it
-prompt=$(sed '1,/^---$/d' "$STATE_FILE" | sed '1,/^---$/d')
+# Skip lines until we've seen two --- delimiters
+prompt=$(awk '/^---$/{n++; next} n>=2' "$STATE_FILE")
 
 # If no prompt found (malformed state file), allow exit
 if [[ -z "$prompt" ]]; then
@@ -127,6 +164,12 @@ new_iteration=$((iteration + 1))
 TEMP_FILE=$(mktemp)
 sed "s/^iteration: *[0-9]*/iteration: $new_iteration/" "$STATE_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$STATE_FILE"
+
+# Increment actualIterations in analytics file
+if [[ -n "$analytics_file" && -f "$analytics_file" ]] && command -v jq &>/dev/null; then
+    TEMP_ANALYTICS=$(mktemp)
+    jq '.actualIterations = (.actualIterations + 1)' "$analytics_file" > "$TEMP_ANALYTICS" && mv "$TEMP_ANALYTICS" "$analytics_file"
+fi
 
 # Build system message with iteration info and promise guidance
 if [[ -n "$completion_promise" ]]; then

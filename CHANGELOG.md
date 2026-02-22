@@ -2,6 +2,24 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-02-22
+
+### Fixed
+- **Analytics population** - Analytics files were always empty (`actualIterations: 0`, `requirements: []`, `summary: null`) because population was a prompt instruction that the LLM ignored. Analytics are now populated by infrastructure: `update-analytics.sh` reads task JSON, git tags, and commit history to derive requirement statuses, iteration counts, files written, and summary statistics. The LLM prompt is reduced to error logging only.
+- **Stop-hook prompt extraction** - The `sed`-based YAML frontmatter extraction (`sed '1,/^---$/d' | sed '1,/^---$/d'`) never worked: the first `sed` consumed both `---` delimiters, leaving the second `sed` with no delimiter to find, so it deleted everything. Replaced with `awk '/^---$/{n++; next} n>=2'` which correctly counts delimiters. This fixes within-session looping — previously the hook always allowed exit on first stop, forcing all iteration to happen via run.sh session restarts.
+
+### Added
+- **`hooks/update-analytics.sh`** - Shell script that populates analytics from ground truth. Called by both `run.sh` (after each session) and `stop-hook.sh` (on completion/max-iterations). Derives requirement status from task JSON flags, `startedAt` from git tags, `iterations` from commit counts, `filesWritten` from git diff. Preserves LLM-written `errors[]` data.
+- **`actualIterations` tracking in stop-hook** - The hook now increments `actualIterations` in the analytics file on each loop iteration, and writes `analytics_file`/`task_file` paths from loop-state frontmatter.
+- **Analytics discovery in run.sh** - After each session, `run.sh` finds the matching analytics file by task name stem and calls `update-analytics.sh` to populate it.
+
+### Changed
+- **`analytics.schema.json`** - `toolCalls`, `phases`, and `filesRead` now accept `null` with descriptions noting they are optional LLM-dependent fields that infrastructure does not track.
+- **`autopilot.md` ANALYTICS_INSTRUCTION** - Reduced from full analytics tracking to error logging only. Infrastructure handles iteration counting, requirement status, file tracking, and summary generation.
+- **`autopilot.md` loop-state template** - Now includes `analytics_file:` and `task_file:` in YAML frontmatter so the stop-hook can access them.
+
+---
+
 ## 2026-02-13
 
 ### Changed
