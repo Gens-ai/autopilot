@@ -45,6 +45,11 @@ if ! command -v jq &>/dev/null; then
     exit 1
 fi
 
+# Temp files for avoiding shell variable size limits
+REQUIREMENTS_FILE=$(mktemp)
+SUMMARY_FILE=$(mktemp)
+trap 'rm -f "$REQUIREMENTS_FILE" "$SUMMARY_FILE"' EXIT
+
 # --- Helper functions ---
 
 # Get ISO8601 timestamp from epoch
@@ -75,23 +80,56 @@ files_changed_between() {
     git diff --name-only "$from".."$to" 2>/dev/null || true
 }
 
+# --- Pre-compute tag order ---
+# Sort all autopilot/req-*/start tags by creation time so we can
+# determine the correct upper bound (next tag) for each requirement.
+
+declare -A TAG_UPPER_BOUND
+
+build_tag_order() {
+    local tag_list
+    # Get all autopilot req tags sorted by creation time (oldest first)
+    tag_list=$(git for-each-ref --sort=creatordate --format='%(refname:short)' 'refs/tags/autopilot/req-*/start' 2>/dev/null || true)
+
+    if [[ -z "$tag_list" ]]; then
+        return
+    fi
+
+    local prev_tag=""
+    local tags=()
+    while IFS= read -r tag; do
+        tags+=("$tag")
+    done <<< "$tag_list"
+
+    # For each tag, the upper bound is the next tag in time order (or HEAD for the last)
+    for i in "${!tags[@]}"; do
+        local next_idx=$((i + 1))
+        if [[ $next_idx -lt ${#tags[@]} ]]; then
+            TAG_UPPER_BOUND["${tags[$i]}"]="${tags[$next_idx]}"
+        else
+            TAG_UPPER_BOUND["${tags[$i]}"]="HEAD"
+        fi
+    done
+}
+
+build_tag_order
+
 # --- Read task file requirements ---
 
 # Build requirements array from task JSON ground truth
+# Writes result to $REQUIREMENTS_FILE as a JSON array
 build_requirements() {
     local req_count
     req_count=$(jq '.requirements | length' "$TASK_FILE" 2>/dev/null || echo "0")
 
     if [[ "$req_count" -eq 0 ]]; then
-        echo "[]"
+        echo "[]" > "$REQUIREMENTS_FILE"
         return
     fi
 
-    local requirements="[]"
-    local completed=0
-    local stuck=0
-    local invalid=0
-    local skipped=0
+    # Write each requirement as a separate JSON line to avoid shell variable limits
+    local req_jsonl
+    req_jsonl=$(mktemp)
 
     for i in $(seq 0 $((req_count - 1))); do
         local req_id req_desc req_passes req_stuck req_invalid req_blocked_reason
@@ -106,13 +144,10 @@ build_requirements() {
         local status="pending"
         if [[ "$req_passes" == "true" ]]; then
             status="completed"
-            completed=$((completed + 1))
         elif [[ "$req_stuck" == "true" ]]; then
             status="stuck"
-            stuck=$((stuck + 1))
         elif [[ "$req_invalid" == "true" ]]; then
             status="invalid"
-            invalid=$((invalid + 1))
         fi
 
         # Check for git tag to get startedAt
@@ -128,12 +163,15 @@ build_requirements() {
                 started_at="\"$(epoch_to_iso "$tag_time")\""
             fi
 
-            # Count commits as iteration proxy
-            iterations=$(commit_count_between "$start_tag" HEAD)
+            # Use the next tag as upper bound instead of HEAD
+            local upper_bound="${TAG_UPPER_BOUND[$start_tag]:-HEAD}"
 
-            # Get files changed since tag
+            # Count commits as iteration proxy
+            iterations=$(commit_count_between "$start_tag" "$upper_bound")
+
+            # Get files changed in this requirement's range only
             local changed_files
-            changed_files=$(files_changed_between "$start_tag" HEAD)
+            changed_files=$(files_changed_between "$start_tag" "$upper_bound")
             if [[ -n "$changed_files" ]]; then
                 files_written=$(echo "$changed_files" | jq -R -s 'split("\n") | map(select(length > 0))')
             fi
@@ -141,7 +179,6 @@ build_requirements() {
             # No tag = requirement was skipped or not started
             if [[ "$status" == "pending" ]]; then
                 status="skipped"
-                skipped=$((skipped + 1))
             fi
         fi
 
@@ -165,9 +202,8 @@ build_requirements() {
             existing_thrashing="null"
         fi
 
-        # Build requirement object
-        local req_obj
-        req_obj=$(jq -n \
+        # Build requirement object and append to JSONL file
+        jq -nc \
             --arg id "$req_id" \
             --arg desc "$req_desc" \
             --arg status "$status" \
@@ -191,32 +227,32 @@ build_requirements() {
                 filesWritten: $filesWritten,
                 toolCalls: null,
                 stuckReason: $stuckReason
-            }')
-
-        requirements=$(echo "$requirements" | jq --argjson req "$req_obj" '. + [$req]')
+            }' >> "$req_jsonl"
     done
 
-    echo "$requirements"
+    # Convert JSONL to JSON array via slurp
+    jq -s '.' "$req_jsonl" > "$REQUIREMENTS_FILE"
+    rm -f "$req_jsonl"
 }
 
 # --- Build summary ---
 
+# Reads requirements from $REQUIREMENTS_FILE, writes summary to $SUMMARY_FILE
 build_summary() {
-    local requirements="$1"
-    local actual_iterations="$2"
+    local actual_iterations="$1"
 
     local completed stuck invalid skipped
-    completed=$(echo "$requirements" | jq '[.[] | select(.status == "completed")] | length')
-    stuck=$(echo "$requirements" | jq '[.[] | select(.status == "stuck")] | length')
-    invalid=$(echo "$requirements" | jq '[.[] | select(.status == "invalid")] | length')
-    skipped=$(echo "$requirements" | jq '[.[] | select(.status == "skipped")] | length')
+    completed=$(jq '[.[] | select(.status == "completed")] | length' "$REQUIREMENTS_FILE")
+    stuck=$(jq '[.[] | select(.status == "stuck")] | length' "$REQUIREMENTS_FILE")
+    invalid=$(jq '[.[] | select(.status == "invalid")] | length' "$REQUIREMENTS_FILE")
+    skipped=$(jq '[.[] | select(.status == "skipped")] | length' "$REQUIREMENTS_FILE")
 
     # Estimate wasted iterations (stuck + thrashing iterations)
     local wasted=0
     local thrashing_iterations
-    thrashing_iterations=$(echo "$requirements" | jq '[.[] | select(.thrashing != null and .thrashing.detected == true) | .iterations] | add // 0')
+    thrashing_iterations=$(jq '[.[] | select(.thrashing != null and .thrashing.detected == true) | .iterations] | add // 0' "$REQUIREMENTS_FILE")
     local stuck_iterations
-    stuck_iterations=$(echo "$requirements" | jq '[.[] | select(.status == "stuck") | .iterations] | add // 0')
+    stuck_iterations=$(jq '[.[] | select(.status == "stuck") | .iterations] | add // 0' "$REQUIREMENTS_FILE")
     wasted=$((thrashing_iterations + stuck_iterations))
 
     # Efficiency score
@@ -254,7 +290,7 @@ build_summary() {
             efficiencyScore: $efficiencyScore,
             durationMs: $durationMs,
             patterns: []
-        }'
+        }' > "$SUMMARY_FILE"
 }
 
 # --- Main ---
@@ -262,11 +298,11 @@ build_summary() {
 # Read existing analytics to preserve LLM-written fields
 existing_actual_iterations=$(jq '.actualIterations // 0' "$ANALYTICS_FILE" 2>/dev/null || echo "0")
 
-# Build requirements from ground truth
-requirements=$(build_requirements)
+# Build requirements from ground truth (writes to $REQUIREMENTS_FILE)
+build_requirements
 
-# Build summary
-summary=$(build_summary "$requirements" "$existing_actual_iterations")
+# Build summary (reads $REQUIREMENTS_FILE, writes to $SUMMARY_FILE)
+build_summary "$existing_actual_iterations"
 
 # Compute completedAt
 completed_at="null"
@@ -274,13 +310,13 @@ if [[ -n "$SESSION_START_EPOCH" && "$SESSION_START_EPOCH" =~ ^[0-9]+$ ]]; then
     completed_at="\"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\""
 fi
 
-# Merge into existing analytics file (preserve fields we don't touch)
+# Merge into existing analytics file using --slurpfile to avoid argument size limits
 TEMP_FILE=$(mktemp)
 jq \
-    --argjson requirements "$requirements" \
-    --argjson summary "$summary" \
+    --slurpfile requirements "$REQUIREMENTS_FILE" \
+    --slurpfile summary "$SUMMARY_FILE" \
     --argjson completedAt "$completed_at" \
-    '.requirements = $requirements | .summary = $summary | .completedAt = $completedAt' \
+    '.requirements = $requirements[0] | .summary = $summary[0] | .completedAt = $completedAt' \
     "$ANALYTICS_FILE" > "$TEMP_FILE"
 
 mv "$TEMP_FILE" "$ANALYTICS_FILE"
