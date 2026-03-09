@@ -23,9 +23,9 @@ This workflow gratefully builds on contributions from the community:
 1. Install autopilot          → ./install.sh (one-time)
 2. Initialize your project    → /autopilot init
 3. Write a PRD                 → /prd "add user login feature"
-4. Generate tasks              → /tasks docs/tasks/prds/user-login.md
+4. Generate tasks              → /tasks docs/autopilot/user-login/user-login.md
 5. Enable sandbox              → /sandbox
-6. Run autopilot               → autopilot docs/tasks/prds/user-login.json
+6. Run autopilot               → autopilot docs/autopilot/user-login/user-login.json
 ```
 
 **Already have a task file?**
@@ -148,7 +148,7 @@ There are two ways to execute autopilot, with different tradeoffs:
 The **wrapper script** runs Claude in a loop, starting a **fresh session for each requirement**. This clears context between requirements, keeping token usage efficient.
 
 ```bash
-autopilot docs/tasks/prds/feature.json
+autopilot docs/autopilot/feature/feature.json
 ```
 
 **How it works:**
@@ -198,7 +198,7 @@ The **slash command** runs within a single Claude session. Context accumulates b
 
 ```bash
 claude --dangerously-skip-permissions
-/autopilot docs/tasks/prds/feature.json
+/autopilot docs/autopilot/feature/feature.json
 ```
 
 **How it works:**
@@ -263,14 +263,14 @@ You only need to run this once per project. The resulting `autopilot.json` shoul
 /prd Add user authentication with email/password
 ```
 
-Claude asks 3-5 clarifying questions, then generates a markdown PRD at `docs/tasks/prds/feature-name.md`.
+Claude asks thorough clarifying questions (as many as needed to fully specify the feature), then generates a markdown PRD at `docs/autopilot/feature-name/feature-name.md`.
 
 **Review and revise until satisfied.** This is your chance to shape the feature before autonomous execution.
 
 ### Step 2: Generate Tasks
 
 ```bash
-/tasks docs/tasks/prds/user-auth.md
+/tasks docs/autopilot/user-auth/user-auth.md
 ```
 
 Before generating tasks, `/tasks` **analyzes your codebase** to understand what exists:
@@ -319,7 +319,7 @@ Each requirement includes a `codeAnalysis` object with specific file targets and
 **Refresh mode:** If implementation goes off-track, re-analyze with `--refresh`:
 
 ```bash
-/tasks docs/tasks/prds/user-auth.json --refresh
+/tasks docs/autopilot/user-auth/user-auth.json --refresh
 ```
 
 This preserves completed requirements while re-running gap analysis on incomplete ones.
@@ -335,7 +335,7 @@ Enables [sandbox mode](https://docs.anthropic.com/en/docs/claude-code/security#s
 ### Step 4: Run Autopilot
 
 ```bash
-/autopilot docs/tasks/prds/user-auth.json
+/autopilot docs/autopilot/user-auth/user-auth.json
 ```
 
 Claude executes each requirement using TDD:
@@ -502,7 +502,7 @@ Autopilot tracks per-session analytics to help identify token waste and improvem
 - Errors with type, message, and resolution
 - Thrashing events
 
-**Analytics files** are stored in `docs/tasks/analytics/` with names like `2026-01-10-user-auth-1.json`.
+**Analytics files** are stored in `docs/autopilot/<feature-name>/analytics/` with names like `2026-01-10-user-auth-1.json`.
 
 **Analyze sessions:**
 ```bash
@@ -519,7 +519,7 @@ The analysis generates:
 
 Suggestions are printed to console for you to review and apply manually. After applying learnings, delete the analytics files:
 ```bash
-rm docs/tasks/analytics/*.json
+rm docs/autopilot/<feature-name>/analytics/*.json
 # or
 /autopilot analyze --clear
 ```
@@ -529,7 +529,7 @@ rm docs/tasks/analytics/*.json
 {
   "analytics": {
     "enabled": true,
-    "directory": "docs/tasks/analytics",
+    "directory": "docs/autopilot/analytics",
     "thrashingThreshold": 3
   }
 }
@@ -624,13 +624,13 @@ autopilot/                    # This repo (source of truth)
 
 your-project/                # Generated during workflow
 ├── autopilot.json           # Project configuration (created by /autopilot init)
-└── docs/tasks/
-    ├── analytics/           # Session analytics (auto-generated)
-    │   └── 2026-01-10-feature-1.json
-    └── prds/
-        ├── feature.md       # Human-readable PRD
-        ├── feature.json     # Machine-readable tasks
-        └── feature-notes.md # Progress log (auto-generated)
+└── docs/autopilot/
+    └── feature-name/        # One directory per feature/run
+        ├── feature-name.md       # Human-readable PRD
+        ├── feature-name.json     # Machine-readable tasks
+        ├── feature-name-notes.md # Progress log (auto-generated)
+        └── analytics/            # Session analytics (auto-generated)
+            └── 2026-01-10-feature-name-1.json
 ```
 
 ## Configuration: autopilot.json
@@ -797,7 +797,7 @@ Ensure the hooks are installed correctly:
 ### Task file not found
 
 Ensure the task file path is correct and the file exists. Common locations:
-- `docs/tasks/prds/<feature>.json`
+- `docs/autopilot/<feature>/<feature>.json`
 - `tasks/<feature>.json`
 
 Run `/tasks <prd-file.md>` to generate a task file from a PRD.
@@ -903,7 +903,7 @@ Autopilot will only fail on NEW errors beyond the baseline. Ideally, fix pre-exi
 **Debugging steps:**
 1. Read the `blockedReason` in the task JSON
 2. Check the notes file for detailed error logs
-3. Check analytics files in `docs/tasks/analytics/` for error patterns
+3. Check analytics files in `docs/autopilot/<feature>/analytics/` for error patterns
 4. Try running the test command manually to reproduce
 5. Use `/autopilot rollback <id>` to reset and try again with modifications
 

@@ -19,10 +19,10 @@
 #   --help          Show this help message
 #
 # Examples:
-#   ./run.sh docs/tasks/prds/feature.json
-#   ./run.sh docs/tasks/prds/feature.json --batch 3
-#   ./run.sh docs/tasks/prds/feature.json --model sonnet
-#   ./run.sh docs/tasks/prds/feature.json --delay 5
+#   ./run.sh docs/autopilot/feature.json
+#   ./run.sh docs/autopilot/feature.json --batch 3
+#   ./run.sh docs/autopilot/feature.json --model sonnet
+#   ./run.sh docs/autopilot/feature.json --delay 5
 #   ./run.sh /my-command --max 5
 #   ./run.sh /review-pr 123 --max 3
 
@@ -280,7 +280,7 @@ else
         echo -e "${RED}Error: Task file not found: $TASKFILE${NC}"
         echo ""
         echo "Common task file locations:"
-        echo "  docs/tasks/prds/<feature>.json"
+        echo "  docs/autopilot/<feature>.json"
         echo "  tasks/<feature>.json"
         echo ""
         echo "Run '/tasks <prd-file.md>' to generate a task file from a PRD."
@@ -714,17 +714,10 @@ while true; do
 
         # --- Update analytics from ground truth ---
         if command -v jq &>/dev/null; then
-            # Derive task name stem from TASKFILE (e.g., "user-auth" from "docs/tasks/prds/user-auth.json")
+            # Derive analytics directory from task file location
+            # e.g., "docs/autopilot/user-auth/user-auth.json" → "docs/autopilot/user-auth/analytics"
             TASKNAME_STEM=$(basename "$TASKFILE" .json | sed 's/\.md$//')
-
-            # Read analytics directory from autopilot.json (default: docs/tasks/analytics)
-            ANALYTICS_DIR="docs/tasks/analytics"
-            if [[ -f "autopilot.json" ]]; then
-                CONFIGURED_DIR=$(jq -r '.analytics.directory // empty' autopilot.json 2>/dev/null)
-                if [[ -n "$CONFIGURED_DIR" ]]; then
-                    ANALYTICS_DIR="$CONFIGURED_DIR"
-                fi
-            fi
+            ANALYTICS_DIR="$(dirname "$TASKFILE")/analytics"
 
             # Find most recent analytics file matching task name
             if [[ -d "$ANALYTICS_DIR" ]]; then

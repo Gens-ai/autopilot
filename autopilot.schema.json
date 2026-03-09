@@ -327,7 +327,7 @@
         },
         "file": {
           "type": ["string", "null"],
-          "default": "docs/tasks/autopilot-metrics.json",
+          "default": "docs/autopilot/autopilot-metrics.json",
           "description": "File path for storing metrics data"
         }
       }
@@ -343,7 +343,7 @@
         },
         "directory": {
           "type": "string",
-          "default": "docs/tasks/analytics",
+          "default": "docs/autopilot/analytics",
           "description": "Directory for storing session analytics files"
         },
         "thrashingThreshold": {

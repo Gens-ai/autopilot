@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/tasks.schema.json",
-  "prdSource": "docs/tasks/prds/cross-package-feature.md",
+  "prdSource": "docs/autopilot/cross-package-feature/cross-package-feature.md",
   "generatedAt": "2026-01-10T10:00:00Z",
   "codebaseAnalysis": {
     "completedAt": "2026-01-10T10:00:05Z",

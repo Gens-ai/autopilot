@@ -67,7 +67,7 @@ The following suggestions have been implemented by enhancing `/tasks` with codeb
 
 **Implementation:**
 - Add `/autopilot replan` or `/autopilot tasks.json --replan` mode
-- Generate `docs/tasks/prds/*-plan.md` alongside existing files
+- Generate `docs/autopilot/*-plan.md` alongside existing files
 - Plan can be more detailed than JSON requirements (subtasks, discoveries, blockers)
 - Consider hybrid: JSON for tracking status, markdown plan for execution guidance
 
@@ -262,7 +262,7 @@ Added Subagent Parallelization section documenting:
 
 **Implementation:**
 - Add `--scope "description"` flag to `/autopilot`
-- Generate branch-specific plan: `docs/tasks/prds/feature-branch-plan.md`
+- Generate branch-specific plan: `docs/autopilot/feature-branch-plan.md`
 - Filter task JSON to scoped subset before execution
 - Support `--branch` flag that creates git branch + scoped plan
 
@@ -371,7 +371,7 @@ Updated `autopilot.md` TDD Rules section with "Acceptance-Driven Testing" subsec
 See "Implemented" section above. Usage:
 
 ```bash
-/tasks docs/tasks/prds/feature.json --refresh
+/tasks docs/autopilot/feature.json --refresh
 ```
 
 **Refresh behavior:**

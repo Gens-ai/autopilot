@@ -144,10 +144,12 @@ If analytics are enabled in `autopilot.json` (default: true), initialize session
 
 1. **Read analytics config** from `autopilot.json`:
    - `analytics.enabled` (default: true)
-   - `analytics.directory` (default: `docs/tasks/analytics`)
    - `analytics.thrashingThreshold` (default: 3)
 
-2. **Create analytics directory** if it doesn't exist
+2. **Determine analytics directory** based on the run:
+   - For task mode: `docs/autopilot/<feature-name>/analytics/` (same dir as the task file)
+   - For standalone modes (tests, lint, entropy): `docs/autopilot/<mode-name>/analytics/`
+   - Create the directory if it doesn't exist
 
 3. **Generate session file name**: `YYYY-MM-DD-TASKNAME-N.json`
    - TASKNAME: derived from task file name or mode (e.g., `user-auth` from `user-auth.json`, or `lint-session`)
@@ -364,7 +366,7 @@ Usage:
 
 ### Analysis Steps
 
-1. **Read analytics directory** from `autopilot.json` (default: `docs/tasks/analytics/`)
+1. **Read analytics directory** — scan all `docs/autopilot/*/analytics/` directories for session files
 
 2. **Load session files** matching the filter criteria
 
@@ -468,7 +470,7 @@ The analysis is printed to console as markdown for easy reading. Suggestions are
 
 After reviewing and applying suggestions, delete the analytics files:
 ```bash
-rm docs/tasks/analytics/*.json
+rm docs/autopilot/<feature-or-mode>/analytics/*.json
 ```
 
 Or use `/autopilot analyze --clear` to delete all analytics files after reviewing.
@@ -550,7 +552,7 @@ completion_promise: COMPLETE
 
 Increase test coverage to TARGET percent minimum.
 
-Read docs/tasks/test-coverage-notes.md if it exists or create it with initial state template.
+Read docs/autopilot/test-coverage/YYYY-MM-DD-notes.md if it exists or create it with initial state template (use today's date).
 
 Run coverage report.
 
@@ -605,7 +607,7 @@ completion_promise: COMPLETE
 
 Fix lint errors one at a time.
 
-Read docs/tasks/lint-fixes-notes.md if it exists or create it with initial state template.
+Read docs/autopilot/lint-fixes/YYYY-MM-DD-notes.md if it exists or create it with initial state template (use today's date).
 
 Run LINT_CMD.
 
@@ -653,7 +655,7 @@ completion_promise: COMPLETE
 
 Clean up code entropy.
 
-Read docs/tasks/entropy-cleanup-notes.md if it exists or create it with initial state template.
+Read docs/autopilot/entropy-cleanup/YYYY-MM-DD-notes.md if it exists or create it with initial state template (use today's date).
 
 Run code-simplifier on recent files.
 
@@ -973,7 +975,7 @@ Autopilot can track metrics across sessions to help identify patterns and improv
 {
   "metrics": {
     "enabled": true,
-    "file": "docs/tasks/autopilot-metrics.json"
+    "file": "docs/autopilot/autopilot-metrics.json"
   }
 }
 ```
@@ -992,7 +994,7 @@ Autopilot can track metrics across sessions to help identify patterns and improv
   "sessions": [
     {
       "date": "2026-01-09",
-      "taskFile": "docs/tasks/prds/user-auth.json",
+      "taskFile": "docs/autopilot/user-auth/user-auth.json",
       "completed": 5,
       "stuck": 1,
       "invalid": 0,

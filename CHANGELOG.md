@@ -2,6 +2,15 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-03-08
+
+### Changed
+- **PRD clarifying questions** - Changed from "ask 3-5 critical questions" to "ask as many as a professional PM/senior dev would ask a client." Added follow-up question rounds, expanded guidelines with 14 areas to probe (users, flows, edge cases, data, permissions, integrations, performance, etc.). PRDs no longer have an "Open Questions" section — all questions must be resolved before writing.
+- **File paths restructured** - All generated files now live in `docs/autopilot/<feature-name>/` instead of `docs/tasks/prds/`. Analytics go in `docs/autopilot/<feature-name>/analytics/`. Standalone mode notes (tests, lint, entropy) go in `docs/autopilot/<mode>/YYYY-MM-DD-notes.md`. Updated `prd.md`, `tasks.md`, `autopilot.md`, `analyze.md`, `CLAUDE.md`, `autopilot.schema.json`, `run.sh`, `install.sh`, `README.md`, and example files.
+- **Analytics directory derivation** - `run.sh` now derives the analytics directory from the task file path instead of reading a global config value.
+
+---
+
 ## 2026-02-22
 
 ### Fixed

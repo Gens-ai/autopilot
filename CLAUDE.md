@@ -32,9 +32,11 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 **Generated in User Projects**:
 - `autopilot.json` - Feedback loops, iterations, project conventions
-- `docs/tasks/prds/*.md` - Human-readable PRDs
-- `docs/tasks/prds/*.json` - Machine-readable task files with TDD tracking
-- `docs/tasks/prds/*-notes.md` - Progress logs for session continuity
+- `docs/autopilot/<feature-name>/` - All files for a given run live in one directory:
+  - `<feature-name>.md` - Human-readable PRD
+  - `<feature-name>.json` - Machine-readable task file with TDD tracking
+  - `<feature-name>-notes.md` - Progress logs for session continuity
+  - `analytics/` - Per-session analytics for this feature
 
 ## Key Concepts
 
@@ -50,7 +52,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 **Code Simplifier**: The `code-simplifier` agent (via Task tool) runs during TDD refactor phase to improve clarity while preserving functionality.
 
-**Analytics**: Per-session analytics files track iterations, errors, and waste patterns. Stored in `docs/tasks/analytics/`. Use `/autopilot analyze` to generate improvement suggestions.
+**Analytics**: Per-session analytics files track iterations, errors, and waste patterns. Stored in `docs/autopilot/<feature-name>/analytics/`. Use `/autopilot analyze` to generate improvement suggestions.
 
 **Thrashing Detection**: If the same error appears N times consecutively (default: 3), the task is immediately marked stuck. This prevents wasting tokens on unsolvable problems.
 
@@ -61,14 +63,13 @@ Analytics help identify token waste and improvement opportunities across autopil
 **Files**:
 - `analytics.schema.json` - Schema for session analytics files
 - `commands/analyze.md` - Post-session analysis command
-- `docs/tasks/analytics/*.json` - Per-session analytics (in user projects)
+- `docs/autopilot/<feature-name>/analytics/*.json` - Per-session analytics (in user projects)
 
 **Configuration** in `autopilot.json`:
 ```json
 {
   "analytics": {
     "enabled": true,
-    "directory": "docs/tasks/analytics",
     "thrashingThreshold": 3
   }
 }

@@ -14,7 +14,7 @@ Analyze autopilot session analytics to identify waste patterns and generate impr
 
 ## Overview
 
-This command reads session analytics files from `docs/tasks/analytics/` and generates:
+This command reads session analytics files from `docs/autopilot/*/analytics/` and generates:
 - Efficiency scores (productive vs wasted iterations)
 - Detected waste patterns (thrashing, environment issues, etc.)
 - Suggested improvements for AGENTS.md and autopilot.json
@@ -32,7 +32,7 @@ Extract from $ARGUMENTS:
 
 ### 2. Load Analytics Files
 
-1. Read analytics directory from `autopilot.json` (default: `docs/tasks/analytics/`)
+1. Read analytics directory from `autopilot.json` (default: `docs/autopilot/*/analytics/`)
 2. List all `*.json` files in the directory
 3. Apply filters based on arguments:
    - `--last`: Sort by date, take most recent

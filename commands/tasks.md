@@ -13,8 +13,8 @@ For each requirement, autopilot will:
 
 ## Input
 
-- **New tasks:** `/tasks docs/tasks/prds/feature-name.md`
-- **Refresh existing:** `/tasks docs/tasks/prds/feature-name.json --refresh`
+- **New tasks:** `/tasks docs/autopilot/feature-name.md`
+- **Refresh existing:** `/tasks docs/autopilot/feature-name.json --refresh`
 
 ## Output
 
@@ -258,7 +258,7 @@ Based on code analysis, infer dependencies between requirements:
 When given an existing tasks JSON file with `--refresh`:
 
 ```
-/tasks docs/tasks/prds/feature.json --refresh
+/tasks docs/autopilot/feature.json --refresh
 ```
 
 ### Refresh Behavior

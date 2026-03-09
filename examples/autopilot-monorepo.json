@@ -99,7 +99,7 @@
   },
   "analytics": {
     "enabled": true,
-    "directory": "docs/tasks/analytics",
+    "directory": "docs/autopilot/analytics",
     "thrashingThreshold": 3
   }
 }
