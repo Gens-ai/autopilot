@@ -7,10 +7,12 @@ To guide an AI assistant in creating a detailed, human-readable Product Requirem
 ## Process
 
 1.  **Receive Initial Prompt:** The user provides a brief description or request for a new feature or functionality.
-2.  **Ask Clarifying Questions:** Before writing the PRD, ask as many clarifying questions as a professional product manager or senior developer would ask a client before writing a spec. Ask at least 3-5 questions, but don't stop there — ask every question needed to fully specify the feature so the PRD has **zero open questions**. Think like a consultant being paid to deliver a complete spec: if something is ambiguous, underspecified, or could be interpreted multiple ways, ask about it. The goal is to understand the "what" and "why" thoroughly enough that the PRD is actionable without further clarification. Make sure to provide options in letter/number lists so the user can respond easily with selections.
-3.  **Follow-up Questions:** After the user answers, review their responses. If any answers raise new questions, introduce ambiguity, or leave gaps — ask follow-up questions. Repeat until you are confident the PRD can be written with no open questions. Don't be afraid to ask 2-3 rounds of questions if needed.
-4.  **Generate PRD:** Based on the initial prompt and all clarifying conversations, generate a PRD using the structure outlined below. The PRD must have **no Open Questions section** — all questions should have been resolved during clarification.
-5.  **Save PRD:** Save the generated document as `[feature-name].md` inside the `docs/autopilot/[feature-name]/` directory. Create the directory if needed.
+2.  **Plan Questions:** Before asking anything, silently plan all the clarifying questions a professional product manager or senior developer would ask a client before writing a spec. Think like a consultant being paid to deliver a complete spec: if something is ambiguous, underspecified, or could be interpreted multiple ways, you need to ask about it. The goal is to understand the "what" and "why" thoroughly enough that the PRD is actionable without further clarification.
+3.  **Announce & Ask One at a Time:** Tell the user: "I have about {X} questions to make sure the PRD is complete. Let's go through them one at a time." Then ask the **first question only**. Wait for the user's response before asking the next question. Each question should include lettered options (A, B, C, D) where applicable for easy selection.
+4.  **Conversational Flow:** After each answer, briefly acknowledge the response (one sentence max), then ask the next question. If an answer raises a new question, ask it as a natural follow-up before moving on. Keep a running count so the user knows progress (e.g., "Question 3 of 12"). It's okay if the total count shifts as follow-ups arise — just update the estimate.
+5.  **Completion:** Once all questions are answered, confirm: "That covers all my questions. I'll write the PRD now."
+6.  **Generate PRD:** Based on the initial prompt and all clarifying conversations, generate a PRD using the structure outlined below. The PRD must have **no Open Questions section** — all questions should have been resolved during clarification.
+7.  **Save PRD:** Save the generated document as `[feature-name].md` inside the `docs/autopilot/[feature-name]/` directory. Create the directory if needed.
 
 ## Clarifying Questions (Guidelines)
 
@@ -35,24 +37,29 @@ Ask every question a professional product manager or senior developer would ask 
 
 ### Formatting Requirements
 
-- **Number all questions** (1, 2, 3, etc.)
-- **List options for each question as A, B, C, D, etc.** for easy reference
-- Make it simple for the user to respond with selections like "1A, 2C, 3B"
+- **Ask one question per message** — never batch multiple questions
+- **List options as A, B, C, D, etc.** where applicable for easy selection
+- **Show progress** — e.g., "Question 3 of ~12"
+- Keep acknowledgments of previous answers to one sentence max
 
-### Example Format
+### Example Flow
 
 ```
-1. What is the primary goal of this feature?
+"I have about 12 questions to make sure the PRD is complete. Let's go through them one at a time."
+
+"Question 1 of ~12: What is the primary goal of this feature?
    A. Improve user onboarding experience
    B. Increase user retention
    C. Reduce support burden
-   D. Generate additional revenue
+   D. Generate additional revenue"
 
-2. Who is the target user for this feature?
+[user answers]
+
+"Got it. Question 2 of ~12: Who is the target user for this feature?
    A. New users only
    B. Existing users only
    C. All users
-   D. Admin users only
+   D. Admin users only"
 ```
 
 ## PRD Structure
@@ -89,8 +96,9 @@ After the PRD is approved, use `/tasks [prd-file]` to convert it to a machine-re
 ## Final instructions
 
 1. Do NOT start implementing the PRD
-2. Ask thorough clarifying questions — as many as needed, not just 3-5
-3. Ask follow-up questions if the user's answers raise new ambiguities
-4. Do NOT write the PRD until all questions are resolved
-5. The final PRD must have ZERO open questions — if you find yourself wanting to add one, stop and ask the user instead
-6. Take the user's answers to all clarifying questions and write a complete, actionable PRD
+2. **Ask ONE question at a time** — NEVER dump multiple questions in a single message
+3. Plan all questions upfront, announce the count, then go through them conversationally
+4. Ask follow-up questions if the user's answers raise new ambiguities
+5. Do NOT write the PRD until all questions are resolved
+6. The final PRD must have ZERO open questions — if you find yourself wanting to add one, stop and ask the user instead
+7. Take the user's answers to all clarifying questions and write a complete, actionable PRD

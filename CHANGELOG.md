@@ -2,6 +2,13 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-03-11
+
+### Changed
+- **PRD one-at-a-time questions** - Clarifying questions are now asked one per message in a conversational flow instead of dumped all at once. Announces question count upfront, shows progress (e.g., "Question 3 of ~12"), and acknowledges each answer briefly before moving on.
+
+---
+
 ## 2026-03-08
 
 ### Changed
