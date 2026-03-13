@@ -4,6 +4,9 @@ All notable changes to Autopilot will be documented in this file.
 
 ## 2026-03-13
 
+### Changed
+- **PRD option recommendations** - When asking clarifying questions with lettered options, the agent now recommends which option it thinks is best and explains why. Users can still pick any option.
+
 ### Fixed
 - **Git tag conflicts** - Autopilot failed when resuming incomplete requirements because `git tag autopilot/req-ID/start` errors on existing tags. Changed instruction to use `git tag -f` which overwrites stale tags from prior attempts. Affects resumed runs, post-rollback retries, and un-stuck requirements.
 

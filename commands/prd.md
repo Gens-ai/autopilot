@@ -39,6 +39,7 @@ Ask every question a professional product manager or senior developer would ask 
 
 - **Ask one question per message** — never batch multiple questions
 - **List options as A, B, C, D, etc.** where applicable for easy selection
+- **Recommend a choice** — after listing options, state which option you think is best and briefly explain why (e.g., "I'd recommend B because..."). The user can still pick any option.
 - **Show progress** — e.g., "Question 3 of ~12"
 - Keep acknowledgments of previous answers to one sentence max
 
@@ -51,7 +52,9 @@ Ask every question a professional product manager or senior developer would ask 
    A. Improve user onboarding experience
    B. Increase user retention
    C. Reduce support burden
-   D. Generate additional revenue"
+   D. Generate additional revenue
+
+I'd recommend A — onboarding tends to have the highest leverage for new features since it directly impacts first impressions and activation rates."
 
 [user answers]
 
@@ -59,7 +62,9 @@ Ask every question a professional product manager or senior developer would ask 
    A. New users only
    B. Existing users only
    C. All users
-   D. Admin users only"
+   D. Admin users only
+
+I'd lean toward C — unless there's a reason to gate this, making it available to all users maximizes impact and avoids segmentation complexity."
 ```
 
 ## PRD Structure
