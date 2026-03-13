@@ -277,7 +277,7 @@ Also skip requirements with dependsOn where any dependency has passes false.
 ANALYTICS_INSTRUCTION
 
 Process ONE requirement at a time. Pick the next workable incomplete requirement (lowest id first) then:
-1. Create git tag autopilot/req-ID/start for THIS requirement ONLY — do NOT create tags for any other requirements
+1. Create git tag: run `git tag -f autopilot/req-ID/start` for THIS requirement ONLY — the `-f` flag overwrites any existing tag from a prior attempt. Do NOT create tags for any other requirements
 2. Track files you modify
 3. If requirement has a package field then use that package feedback loop commands from workspaces config
 4. If requirement has an issue field then append issue reference to commit messages
