@@ -2,6 +2,13 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-03-13
+
+### Fixed
+- **Git tag conflicts** - Autopilot failed when resuming incomplete requirements because `git tag autopilot/req-ID/start` errors on existing tags. Changed instruction to use `git tag -f` which overwrites stale tags from prior attempts. Affects resumed runs, post-rollback retries, and un-stuck requirements.
+
+---
+
 ## 2026-03-11
 
 ### Changed
