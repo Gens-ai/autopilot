@@ -138,8 +138,8 @@ COMMAND=""  # Slash command for command loop mode
 COMMAND_ARGS=""  # Arguments for the slash command
 MODE="task"  # "task" or "command"
 
-# PID file for signal-based shutdown
-PID_FILE=".autopilot.pid"
+# PID file — set after mode/taskfile are known (see path setup block below)
+PID_FILE=""
 STOP_REQUESTED=false
 CURRENT_CLAUDE_PID=""
 
@@ -311,6 +311,22 @@ else
     fi
 fi
 
+# --- Path setup: per-feature dirs for task mode, shared .autopilot/ for command mode ---
+if [[ "$MODE" == "task" ]]; then
+    FEATURE_DIR=$(dirname "$TASKFILE")
+    mkdir -p "$FEATURE_DIR"
+    PID_FILE="$FEATURE_DIR/run.pid"
+    STOP_SIGNAL_FILE="$FEATURE_DIR/stop-signal"
+    LOOP_STATE_FILE="$FEATURE_DIR/loop-state.md"
+    export AUTOPILOT_STATE_DIR="$FEATURE_DIR"
+else
+    mkdir -p .autopilot
+    PID_FILE=".autopilot/command.pid"
+    STOP_SIGNAL_FILE=".autopilot/stop-signal"
+    LOOP_STATE_FILE=".autopilot/loop-state.md"
+    export AUTOPILOT_STATE_DIR=".autopilot"
+fi
+
 # Check if another instance is running
 if [[ -f "$PID_FILE" ]]; then
     OLD_PID=$(cat "$PID_FILE")
@@ -339,9 +355,6 @@ cleanup_on_exit() {
     rm -f "$PID_FILE"
 }
 trap cleanup_on_exit EXIT
-
-# Sentinel file for stop signal from autopilot command
-STOP_SIGNAL_FILE=".autopilot/stop-signal"
 
 # Clean up any stale stop signal file from previous runs
 rm -f "$STOP_SIGNAL_FILE"
@@ -472,8 +485,7 @@ if [[ "$MODE" == "command" ]]; then
             echo ""
 
             # Create loop state file to instruct Claude to run command and exit
-            mkdir -p .autopilot
-            cat > .autopilot/loop-state.md << LOOPSTATE
+            cat > "$LOOP_STATE_FILE" << LOOPSTATE
 ---
 iteration: 1
 max_iterations: 1
@@ -498,7 +510,7 @@ LOOPSTATE
                     kill_session "$CLAUDE_PID"
                     wait "$CLAUDE_PID" 2>/dev/null || true
                     CURRENT_CLAUDE_PID=""
-                    rm -f ".autopilot/loop-state.md"
+                    rm -f "$LOOP_STATE_FILE"
                     echo -e "${YELLOW}Stopped${NC}"
                     exit 0
                 fi
@@ -508,7 +520,7 @@ LOOPSTATE
                     kill_session "$CLAUDE_PID"
                     wait "$CLAUDE_PID" 2>/dev/null || true
                     CURRENT_CLAUDE_PID=""
-                    rm -f "$STOP_SIGNAL_FILE" ".autopilot/loop-state.md"
+                    rm -f "$STOP_SIGNAL_FILE" "$LOOP_STATE_FILE"
                     echo -e "${GREEN}Command signaled completion${NC}"
                     break
                 fi
@@ -527,7 +539,7 @@ LOOPSTATE
             wait "$CLAUDE_PID" 2>/dev/null || true
             CLAUDE_EXIT=$?
             CURRENT_CLAUDE_PID=""
-            rm -f ".autopilot/loop-state.md"
+            rm -f "$LOOP_STATE_FILE"
 
             # Sweep for daemonized children that escaped kill_session
             cleanup_stale_processes
@@ -673,7 +685,7 @@ while true; do
                 echo ""
                 echo -e "${GREEN}Batch complete ($PROGRESS requirement(s)) - terminating for fresh context...${NC}"
                 kill_session "$CLAUDE_PID"
-                rm -f ".autopilot/loop-state.md"
+                rm -f "$LOOP_STATE_FILE"
                 break
             fi
 
@@ -688,7 +700,7 @@ while true; do
                     echo ""
                     echo -e "${GREEN}Progress made ($PROGRESS requirement(s)) - restarting for fresh context...${NC}"
                     kill_session "$CLAUDE_PID"
-                    rm -f ".autopilot/loop-state.md"
+                    rm -f "$LOOP_STATE_FILE"
                     break
                 fi
                 # No progress at all and idle too long = stuck
@@ -696,7 +708,7 @@ while true; do
                     echo ""
                     echo -e "${YELLOW}No progress for ${IDLE_TIMEOUT}s - terminating idle session...${NC}"
                     kill_session "$CLAUDE_PID"
-                    rm -f ".autopilot/loop-state.md"
+                    rm -f "$LOOP_STATE_FILE"
                     break
                 fi
             fi

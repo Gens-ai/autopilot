@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Superpowers Skills
+
+When using superpowers skills that save plans or documents:
+- **Plans**: save to `docs/plans/YYYY-MM-DD-<feature-name>.md` (not `docs/superpowers/plans/`)
+
 ## Project Overview
 
 Autopilot is a workflow toolkit for autonomous Test-Driven Development using Claude Code. It includes a built-in loop mechanism (stop-hook) that enables iterative execution without external dependencies. The typical workflow:

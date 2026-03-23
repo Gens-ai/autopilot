@@ -19,8 +19,10 @@
 # Don't exit on error - we need to handle errors gracefully
 set +e
 
-# State file location (in project directory)
-STATE_FILE=".autopilot/loop-state.md"
+# State file location — use AUTOPILOT_STATE_DIR if set (parallel agent support),
+# fall back to .autopilot/ for standalone use
+STATE_DIR="${AUTOPILOT_STATE_DIR:-.autopilot}"
+STATE_FILE="$STATE_DIR/loop-state.md"
 
 # Read hook input from stdin
 HOOK_INPUT=$(cat)

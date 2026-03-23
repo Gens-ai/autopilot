@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# git-commit — Serializes git commits across parallel autopilot instances.
+#
+# Usage: hooks/git-commit [git commit args...]
+#
+# Acquires a project-level mutex via `mkdir` (POSIX atomic), runs
+# `git commit "$@"`, then releases. Safe to call from multiple agents
+# simultaneously — others wait up to 60 seconds then abort.
+#
+
+set -euo pipefail
+
+LOCK_DIR=".autopilot/commit-lock"
+MAX_WAIT=60
+waited=0
+
+# Acquire lock (mkdir is atomic on POSIX filesystems)
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    if [[ $waited -ge $MAX_WAIT ]]; then
+        echo "autopilot: timed out waiting for commit lock after ${MAX_WAIT}s" >&2
+        exit 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+done
+
+# Always release on exit (normal, error, or signal)
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+
+# Ensure .autopilot dir exists (mkdir -p handles race safely)
+mkdir -p .autopilot
+
+git commit "$@"

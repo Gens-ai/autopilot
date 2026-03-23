@@ -2,6 +2,18 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-03-23
+
+### Added
+- **Parallel agent support (Phase 1)** - Multiple `run.sh` instances can now run simultaneously on different task files. Per-feature state files (PID, loop-state, stop-signal) are stored in the feature's directory (`docs/autopilot/<feature>/`) instead of the shared `.autopilot/` root. `run.sh` exports `AUTOPILOT_STATE_DIR` so the stop-hook finds the correct loop-state file per instance.
+- **`hooks/git-commit` commit mutex** - New wrapper around `git commit` that serializes commits via `mkdir` lock (POSIX atomic). Prevents staging-area races when parallel agents commit simultaneously.
+- **Parallel awareness in `autopilot.md`** - Phase 0c instructs agents to check for sibling `run.pid` files and follow safe git practices (specific file adds, serialized commits via `hooks/git-commit`) when running in parallel.
+
+### Changed
+- **`CLAUDE.md`** - Added superpowers skill output conventions: plans save to `docs/plans/` (not `docs/superpowers/plans/`).
+
+---
+
 ## 2026-03-13
 
 ### Changed

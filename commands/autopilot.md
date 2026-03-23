@@ -95,6 +95,19 @@ Read the configuration and use:
 
 Proceed to argument parsing and mode execution.
 
+### 0c. Parallel Agent Awareness
+
+Check for other running autopilot instances:
+
+```bash
+ls docs/autopilot/*/run.pid 2>/dev/null
+```
+
+If other `run.pid` files exist (besides your own feature's):
+- **Always use `git add <specific-files>`** — never `git add -A` or `git add .`, as other agents may have staged their own changes simultaneously.
+- **Use `hooks/git-commit` instead of `git commit`** to serialize commits and prevent staging-area races. Find it at `~/.claude/hooks/git-commit` or `hooks/git-commit` relative to the autopilot repo root.
+- **Before modifying a shared file**, check if another agent recently touched it: `git log --oneline -5 -- <file>`. If so, read the current file state before editing to avoid clobbering their work.
+
 ### 0b. Argument Parsing
 
 Parse `$ARGUMENTS` to extract:
