@@ -49,6 +49,17 @@ ln -s "$SCRIPT_DIR/hooks/stop-hook.sh" ~/.claude/hooks/autopilot-stop-hook.sh
 chmod +x ~/.claude/hooks/autopilot-stop-hook.sh
 echo "  Linked: stop-hook.sh → ~/.claude/hooks/autopilot-stop-hook.sh"
 
+# Symlink git-commit mutex for parallel agent support
+if [ -L ~/.claude/hooks/git-commit ]; then
+    rm ~/.claude/hooks/git-commit
+elif [ -f ~/.claude/hooks/git-commit ]; then
+    echo "Backing up existing git-commit to git-commit.bak"
+    mv ~/.claude/hooks/git-commit ~/.claude/hooks/git-commit.bak
+fi
+ln -s "$SCRIPT_DIR/hooks/git-commit" ~/.claude/hooks/git-commit
+chmod +x ~/.claude/hooks/git-commit
+echo "  Linked: git-commit → ~/.claude/hooks/git-commit"
+
 # Check if hooks.json exists and update it
 HOOKS_JSON=~/.claude/hooks.json
 if [ -f "$HOOKS_JSON" ]; then

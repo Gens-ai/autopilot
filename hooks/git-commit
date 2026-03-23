@@ -7,6 +7,7 @@
 # Acquires a project-level mutex via `mkdir` (POSIX atomic), runs
 # `git commit "$@"`, then releases. Safe to call from multiple agents
 # simultaneously — others wait up to 60 seconds then abort.
+# Detects stale locks left by killed processes.
 #
 
 set -euo pipefail
@@ -15,8 +16,21 @@ LOCK_DIR=".autopilot/commit-lock"
 MAX_WAIT=60
 waited=0
 
+# Ensure .autopilot dir exists before attempting to create the lock inside it
+mkdir -p .autopilot
+
 # Acquire lock (mkdir is atomic on POSIX filesystems)
 while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    # Check for stale lock (owner process no longer running)
+    if [[ -f "$LOCK_DIR/pid" ]]; then
+        lock_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+        if [[ -n "$lock_pid" ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+            echo "autopilot: removing stale commit lock (PID $lock_pid no longer running)" >&2
+            rm -rf "$LOCK_DIR"
+            continue
+        fi
+    fi
+
     if [[ $waited -ge $MAX_WAIT ]]; then
         echo "autopilot: timed out waiting for commit lock after ${MAX_WAIT}s" >&2
         exit 1
@@ -25,10 +39,10 @@ while ! mkdir "$LOCK_DIR" 2>/dev/null; do
     waited=$((waited + 1))
 done
 
-# Always release on exit (normal, error, or signal)
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+# Record our PID so stale lock detection works if we're killed
+echo $$ > "$LOCK_DIR/pid"
 
-# Ensure .autopilot dir exists (mkdir -p handles race safely)
-mkdir -p .autopilot
+# Always release on exit (normal, error, or signal)
+trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 git commit "$@"
