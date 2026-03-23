@@ -187,7 +187,17 @@ If analytics are enabled in `autopilot.json` (default: true), initialize session
 
 5. **Store path** as `ANALYTICS_FILE` for use during execution
 
-6. **Write to loop-state frontmatter**: After creating `ANALYTICS_FILE`, add `analytics_file: <ANALYTICS_FILE path>` and `task_file: <TASKFILE path>` to the `.autopilot/loop-state.md` YAML frontmatter so that the stop-hook can read them for infrastructure-level analytics updates.
+6. **Write to loop-state frontmatter**: After creating `ANALYTICS_FILE`, add `analytics_file: <ANALYTICS_FILE path>` and `task_file: <TASKFILE path>` to the `$STATE_DIR/loop-state.md` YAML frontmatter so that the stop-hook can read them for infrastructure-level analytics updates.
+
+### 0e. State Directory
+
+Determine the state directory by running:
+```bash
+bash -c 'echo "${AUTOPILOT_STATE_DIR:-.autopilot}"'
+```
+Store the result as **STATE_DIR**. Create it if needed: `mkdir -p STATE_DIR`.
+
+Use STATE_DIR for **all** loop-state.md and stop-signal file operations throughout this session. Do not hardcode `.autopilot/` for these files.
 
 ---
 
@@ -206,22 +216,19 @@ For `stop` argument. Signals the run.sh loop to exit gracefully.
 **Do not check for autopilot.json** - this mode should work regardless of configuration.
 
 Steps:
-1. Check if `.autopilot.pid` exists
-2. If it does not exist, tell the user:
+1. Find running autopilot PID files:
+   - If `AUTOPILOT_STATE_DIR` is set in env: check `$AUTOPILOT_STATE_DIR/run.pid`
+   - Also search: `ls docs/autopilot/*/run.pid .autopilot/command.pid 2>/dev/null`
+   - Collect all found PID files
+2. If no PID files found, tell the user:
    ```
    No autopilot session is running.
    ```
-3. If it exists, read the PID from the file
-4. Check if the process is running: `kill -0 $PID 2>/dev/null`
-5. If process is not running, remove the stale PID file and tell the user:
-   ```
-   No autopilot session is running (removed stale PID file).
-   ```
-6. If process is running, send SIGUSR1: `kill -USR1 $PID`
-7. Tell the user:
-   ```
-   Stop signal sent to autopilot (PID $PID). The session will terminate shortly.
-   ```
+3. For each PID file found:
+   - Read the PID
+   - If process not running: remove the stale PID file, note it was stale
+   - If process running: send SIGUSR1 (`kill -USR1 $PID`) and note it was stopped
+4. Tell the user which sessions were stopped (or that all were stale).
 
 ## Mode: Cancel
 
@@ -230,7 +237,7 @@ For `cancel` argument. Cancels an active hook-based loop by removing the state f
 **Do not check for autopilot.json** - this mode should work regardless of configuration.
 
 Steps:
-1. Check if `.autopilot/loop-state.md` exists
+1. Check if `$STATE_DIR/loop-state.md` exists
 2. If it does not exist, tell the user:
    ```
    No active autopilot loop found.
@@ -240,7 +247,7 @@ Steps:
    Or press Ctrl+C in the terminal running the wrapper.
    ```
 3. If it exists, read the current iteration from the YAML frontmatter
-4. Delete the file: `rm .autopilot/loop-state.md`
+4. Delete the file: `rm $STATE_DIR/loop-state.md`
 5. Tell the user:
    ```
    Autopilot loop canceled at iteration N.
@@ -264,7 +271,7 @@ Check for `--batch N` flag. If present, extract the BATCH_COUNT (default: 0 mean
 
 ### Loop Setup
 
-Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -326,7 +333,7 @@ Replace:
 - START_FROM_INSTRUCTION with `Skip requirements with id less than START_ID.` if --start-from was specified, otherwise remove it
 - BATCH_INSTRUCTION with `Stop after completing BATCH_COUNT requirements and output COMPLETE.` if --batch was specified, otherwise remove it
 - COMPLETION_INSTRUCTION with `Output COMPLETE after completing BATCH_COUNT requirements.` if --batch was specified, otherwise `Output COMPLETE when all requirements pass or all remaining are stuck or invalid or blocked by dependencies.`
-- STOP_SIGNAL_INSTRUCTION with `When ALL requirements are complete (passes true, stuck true, or invalidTest true for every requirement), write the file .autopilot/stop-signal with content "done" to signal run.sh to exit.`
+- STOP_SIGNAL_INSTRUCTION with `When ALL requirements are complete (passes true, stuck true, or invalidTest true for every requirement), write the file $STATE_DIR/stop-signal with content "done" to signal run.sh to exit.`
 - ANALYTICS_FILE_PATH with the analytics file path if analytics are enabled, otherwise remove the `analytics_file:` line
 - TASKFILE_PATH with the task file path
 
@@ -512,7 +519,7 @@ Usage:
 
 ### Loop Setup
 
-Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -554,7 +561,7 @@ Read `autopilot.json` to get:
 
 ### Loop Setup
 
-Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -609,7 +616,7 @@ Read `autopilot.json` to get:
 
 ### Loop Setup
 
-Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -657,7 +664,7 @@ Read `autopilot.json` to get:
 
 ### Loop Setup
 
-Create the loop state file `.autopilot/loop-state.md` with YAML frontmatter:
+Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:
 
 ```markdown
 ---
