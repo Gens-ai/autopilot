@@ -338,11 +338,14 @@ Enables [sandbox mode](https://docs.anthropic.com/en/docs/claude-code/security#s
 /autopilot docs/autopilot/user-auth/user-auth.json
 ```
 
-Claude executes each requirement using TDD:
+Claude creates (or checks out) a branch named after the feature, then executes each requirement using TDD:
 
-1. **Red** - Write failing test, verify it fails, commit
-2. **Green** - Write minimal implementation, verify it passes, commit
-3. **Refactor** - Run code-simplifier, verify tests green, commit
+1. **Branch** - Create or switch to `user-auth` branch
+2. **Red** - Write failing test, verify it fails, commit
+3. **Green** - Write minimal implementation, verify it passes, commit
+4. **Refactor** - Run code-simplifier, verify tests green, commit
+
+All commits land on the feature branch, ready for review or PR creation when done.
 
 Progress is logged to `*-notes.md` alongside the task file. Learnings are appended to `AGENTS.md`.
 
@@ -398,6 +401,10 @@ Regardless of which method you use, Claude tracks progress through persistent st
 - Checking git history (all commits from previous iterations)
 
 This persistent state allows seamless resumption across sessions.
+
+### Feature Branches
+
+When running TDD task mode, autopilot automatically creates a branch named after the feature file (e.g. `user-auth.json` → branch `user-auth`). If the branch already exists (e.g. resuming a previous session), it checks it out instead. All TDD commits land on this branch, keeping `main` clean until you're ready to review and merge.
 
 ### Token Frugality
 

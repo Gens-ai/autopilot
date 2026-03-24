@@ -269,6 +269,17 @@ Read `autopilot.json` to get:
 Check for `--start-from ID` flag. If present, extract the START_ID.
 Check for `--batch N` flag. If present, extract the BATCH_COUNT (default: 0 means unlimited).
 
+### Branch Setup
+
+Derive the feature name from the task file path by taking the basename and stripping the extension (e.g. `docs/autopilot/my-feature/my-feature.json` → `my-feature`).
+
+Create or switch to the feature branch:
+```bash
+git checkout <feature-name> 2>/dev/null || git checkout -b <feature-name>
+```
+
+If the checkout fails for any reason other than the branch not existing, stop and report the error to the user.
+
 ### Loop Setup
 
 Create the loop state file `$STATE_DIR/loop-state.md` with YAML frontmatter:

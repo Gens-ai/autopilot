@@ -2,6 +2,13 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-03-24
+
+### Added
+- **Feature branch per run** - TDD task mode now automatically creates (or checks out) a branch named after the feature before starting work. Branch name is derived from the task file basename (e.g. `my-feature.json` → branch `my-feature`).
+
+---
+
 ## 2026-03-23
 
 ### Added
