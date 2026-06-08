@@ -43,9 +43,22 @@ For larger task files, increase iterations or use `--start-from` to resume acros
 
 ### If `autopilot.json` does not exist:
 
-Tell the user:
+First determine the requested mode (see 0c. Mode Detection below). Some modes do **not** require configuration and must proceed regardless: `init`, `stop`, `cancel`, and command loop mode (`/<command>`). For those, skip this check entirely.
+
+For every other mode (TDD task file, `tests`, `lint`, `entropy`, `rollback`, `metrics`, `analyze`), **auto-initialize instead of stopping**:
+
+1. Tell the user:
+   ```
+   No autopilot.json found — auto-initializing with detected defaults (init --force) before continuing.
+   Review autopilot.json afterward and adjust feedback loops if needed.
+   ```
+2. Run the initialization logic equivalent to `/autopilot init --force` (invoke `commands/autopilot:init.md` with the `--force` flag). This auto-detects project type, feedback loops, and server config without interactive prompts.
+3. After init completes, re-read `autopilot.json` and validate it (same checks as the "exists but has null required values" section below).
+4. **If a valid `autopilot.json` now exists**: continue to argument parsing and execute the originally requested mode in this same session. Do not make the user re-run the command.
+5. **If init could not produce a valid config** (e.g. not a git repository, or required feedback-loop commands could not be detected and no sensible default applies): fall back to the message below and stop.
+
 ```
-Autopilot is not configured for this project.
+Autopilot could not auto-configure this project.
 
 Run /autopilot init to set up autopilot with:
 - Feedback loop detection (tests, lint, typecheck)
@@ -54,11 +67,9 @@ Run /autopilot init to set up autopilot with:
 - Server configuration
 
 This only needs to be done once per project.
-
-Quick setup: /autopilot init --force (uses auto-detected values)
 ```
 
-Then stop execution. Do not proceed without configuration.
+**Greenfield / scaffold-first note:** It is normal for a brand-new project to have feedback-loop commands that are not runnable yet (e.g. `cd backend && php artisan test` before an early requirement scaffolds `backend/`). Do **not** disable those loops during auto-init — they become active once the scaffolding requirement runs. Keep them enabled.
 
 ### If `autopilot.json` exists but has null required values:
 

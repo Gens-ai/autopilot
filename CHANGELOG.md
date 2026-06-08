@@ -2,6 +2,13 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-06-08
+
+### Changed
+- **Auto-init on missing config** - When a config-requiring mode (`/autopilot <task-file>`, `tests`, `lint`, `entropy`, `rollback`, `metrics`, `analyze`) is run with no `autopilot.json`, autopilot now auto-runs `init --force` and continues in the same session instead of aborting with a "not configured" message. Config-less modes (`init`, `stop`, `cancel`, command loop) are unaffected. If auto-init can't produce a valid config (e.g. not a git repo), it falls back to the manual-setup message and stops. Also documents the greenfield/scaffold-first pattern: feedback-loop tooling created by an early requirement stays enabled rather than being disabled during init.
+
+---
+
 ## 2026-03-24
 
 ### Added

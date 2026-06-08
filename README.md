@@ -38,6 +38,8 @@ autopilot tasks.json
 /autopilot tasks.json
 ```
 
+> **No `autopilot.json` yet?** `/autopilot <task-file>` (and the `tests`/`lint`/`entropy`/`analyze` modes) now **auto-initialize** with detected defaults (`init --force`) and continue in the same session — you no longer have to run `/autopilot init` first. Review the generated `autopilot.json` afterward and adjust feedback loops if needed. Greenfield projects whose feedback-loop tooling is scaffolded by an early requirement are expected and supported; those loops stay enabled and activate once that requirement runs.
+
 **Decision tree:**
 
 ```
