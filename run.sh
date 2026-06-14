@@ -36,7 +36,29 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+# ── Subcommand dispatch ───────────────────────────────────────────────────────
+# Handle 'autopilot <subcommand> [args]' before normal argument parsing.
+# Each subcommand lives in a sibling script named autopilot-<subcommand>.
+if [[ $# -gt 0 && "${1:0:1}" != "-" && "${1:0:1}" != "/" && "$1" != *.json && "$1" != *.md ]]; then
+    SUBCMD="$1"
+    shift
+    SUBCMD_SCRIPT="$SCRIPT_DIR/autopilot-${SUBCMD}"
+    if [[ -x "$SUBCMD_SCRIPT" ]]; then
+        exec "$SUBCMD_SCRIPT" "$@"
+    else
+        echo -e "${RED}Error: unknown subcommand '${SUBCMD}'${NC}"
+        echo ""
+        echo "Usage:"
+        echo "  autopilot <taskfile.json>              # Run task loop"
+        echo "  autopilot /<slash-command> [args]      # Run slash command loop"
+        echo "  autopilot test-stories <domain-file>   # Test user stories"
+        echo ""
+        echo "Run 'autopilot --help' for full options."
+        exit 1
+    fi
+fi
 
 # --- Process cleanup helpers ---
 

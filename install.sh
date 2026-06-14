@@ -108,6 +108,16 @@ fi
 ln -s "$SCRIPT_DIR/cleanup.sh" ~/.local/bin/autopilot-cleanup
 echo "  Linked: cleanup.sh → ~/.local/bin/autopilot-cleanup"
 
+# Symlink autopilot-test-stories
+if [ -L ~/.local/bin/autopilot-test-stories ]; then
+    rm ~/.local/bin/autopilot-test-stories
+elif [ -f ~/.local/bin/autopilot-test-stories ]; then
+    echo "Backing up existing ~/.local/bin/autopilot-test-stories to autopilot-test-stories.bak"
+    mv ~/.local/bin/autopilot-test-stories ~/.local/bin/autopilot-test-stories.bak
+fi
+ln -s "$SCRIPT_DIR/autopilot-test-stories" ~/.local/bin/autopilot-test-stories
+echo "  Linked: autopilot-test-stories → ~/.local/bin/autopilot-test-stories"
+
 echo ""
 echo "Installation complete!"
 echo ""
@@ -119,13 +129,16 @@ echo "  /autopilot init    - Initialize project configuration (inside Claude)"
 echo "  /autopilot stop    - Stop run.sh wrapper gracefully (inside Claude)"
 echo "  /autopilot cancel  - Cancel hook-based loop (inside Claude)"
 echo "  /autopilot analyze - Analyze session analytics (inside Claude)"
+echo "  /test-user-stories - Parse domain file and generate testing task JSON (inside Claude)"
 echo ""
-echo "  autopilot       - Token-frugal wrapper (from terminal)"
-echo "  autopilot-cleanup - Kill orphaned Claude processes (from terminal)"
+echo "  autopilot                              - Token-frugal wrapper (from terminal)"
+echo "  autopilot test-stories <domain.md>     - Audit user stories against existing features"
+echo "  autopilot-cleanup                      - Kill orphaned Claude processes (from terminal)"
 echo ""
 echo "Usage:"
 echo "  autopilot docs/autopilot/feature/feature.json    # Fresh context per requirement"
-echo "  autopilot tasks.json --batch 3            # 3 requirements per session"
+echo "  autopilot tasks.json --batch 3                   # 3 requirements per session"
+echo "  autopilot test-stories docs/testing/domains/01-feature-area.md"
 echo ""
 echo "Run '/autopilot init' in your project to set up configuration."
 echo ""

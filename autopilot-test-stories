@@ -1,0 +1,169 @@
+#!/bin/bash
+#
+# autopilot-test-stories - Subcommand: generate + run user story testing
+#
+# Generates a testing task JSON from a domain file (if not already generated),
+# then runs autopilot in fresh-session-per-requirement mode until all stories
+# are tested and documented.
+#
+# Usage:
+#   autopilot test-stories <domain-file.md> [options]
+#
+# Options:
+#   --model MODEL   Claude model to use (opus, sonnet, haiku, or full name)
+#   --delay N       Seconds to wait between sessions (default: 2)
+#   --cleanup       Kill stale Claude processes before starting
+#   --dry-run       Show what would be done without executing
+#   --skip-gen      Skip task generation (use existing JSON)
+#   --help          Show this help message
+#
+# Examples:
+#   autopilot test-stories docs/testing/domains/01-auth-and-registration.md
+#   autopilot test-stories docs/testing/domains/02-events-and-scheduling.md --model sonnet
+#   autopilot test-stories docs/testing/domains/05-payments.md --skip-gen
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Resolve the autopilot binary — works both from the dev dir and ~/.local/bin/
+if [[ -x "$SCRIPT_DIR/run.sh" ]]; then
+    AUTOPILOT_BIN="$SCRIPT_DIR/run.sh"
+elif [[ -x "$SCRIPT_DIR/autopilot" ]]; then
+    AUTOPILOT_BIN="$SCRIPT_DIR/autopilot"
+else
+    AUTOPILOT_BIN="$(command -v autopilot)"
+fi
+
+# Defaults
+DOMAIN_FILE=""
+MODEL=""
+DELAY=2
+DRY_RUN=false
+CLEANUP=false
+SKIP_GEN=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --model)    MODEL="$2";    shift 2 ;;
+        --delay)    DELAY="$2";    shift 2 ;;
+        --cleanup)  CLEANUP=true;  shift   ;;
+        --dry-run)  DRY_RUN=true;  shift   ;;
+        --skip-gen) SKIP_GEN=true; shift   ;;
+        --help|-h)
+            sed -n '/^#/p' "$0" | sed 's/^# \?//'
+            exit 0
+            ;;
+        -*)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+        *)
+            if [[ -z "$DOMAIN_FILE" ]]; then
+                DOMAIN_FILE="$1"
+            else
+                echo -e "${RED}Unexpected argument: $1${NC}"
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate input
+if [[ -z "$DOMAIN_FILE" ]]; then
+    echo -e "${RED}Error: No domain file specified${NC}"
+    echo "Usage: autopilot test-stories <domain-file.md> [options]"
+    exit 1
+fi
+
+if [[ ! -f "$DOMAIN_FILE" ]]; then
+    echo -e "${RED}Error: Domain file not found: $DOMAIN_FILE${NC}"
+    exit 1
+fi
+
+# Derive domain name and JSON output path from domain file
+# e.g. docs/testing/domains/01-auth-and-registration.md
+#   -> domain name: 01-auth-and-registration
+#   -> JSON path:   docs/autopilot/testing/01-auth-and-registration/01-auth-and-registration.json
+DOMAIN_NAME=$(basename "$DOMAIN_FILE" .md)
+JSON_FILE="docs/autopilot/testing/${DOMAIN_NAME}/${DOMAIN_NAME}.json"
+
+# Build shared options to forward
+RUN_OPTS=()
+[[ -n "$MODEL" ]]          && RUN_OPTS+=(--model "$MODEL")
+[[ "$DELAY" != "2" ]]      && RUN_OPTS+=(--delay "$DELAY")
+[[ "$CLEANUP" == true ]]   && RUN_OPTS+=(--cleanup)
+[[ "$DRY_RUN" == true ]]   && RUN_OPTS+=(--dry-run)
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}  autopilot test-stories${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo -e "Domain file: ${DOMAIN_FILE}"
+echo -e "Task JSON:   ${JSON_FILE}"
+echo ""
+
+# ── Step 1: Generate the task JSON (unless skipped or already exists) ─────────
+
+if [[ "$SKIP_GEN" == true ]]; then
+    echo -e "${YELLOW}Skipping task generation (--skip-gen)${NC}"
+    if [[ ! -f "$JSON_FILE" ]]; then
+        echo -e "${RED}Error: --skip-gen specified but JSON not found: $JSON_FILE${NC}"
+        exit 1
+    fi
+elif [[ -f "$JSON_FILE" ]]; then
+    echo -e "${YELLOW}Task JSON already exists — skipping generation.${NC}"
+    echo -e "${YELLOW}To regenerate, delete: $JSON_FILE${NC}"
+else
+    echo -e "${GREEN}Step 1: Generating task JSON from domain file...${NC}"
+    echo ""
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${YELLOW}[DRY RUN] Would run:${NC}"
+        echo "  $AUTOPILOT_BIN /test-user-stories $DOMAIN_FILE --max 1 ${RUN_OPTS[*]}"
+        echo ""
+    else
+        "$AUTOPILOT_BIN" /test-user-stories "$DOMAIN_FILE" --max 1 "${RUN_OPTS[@]}"
+
+        if [[ ! -f "$JSON_FILE" ]]; then
+            echo ""
+            echo -e "${RED}Error: Task JSON was not created at expected path:${NC}"
+            echo -e "${RED}  $JSON_FILE${NC}"
+            echo ""
+            echo "The /test-user-stories command may have saved it elsewhere."
+            echo "Check the session output above, then re-run with --skip-gen and correct path."
+            exit 1
+        fi
+
+        echo ""
+        echo -e "${GREEN}Task JSON created: $JSON_FILE${NC}"
+    fi
+fi
+
+echo ""
+
+# ── Step 2: Run autopilot over the task JSON, fresh session per story ─────────
+
+echo -e "${GREEN}Step 2: Running testing loop (fresh session per story)...${NC}"
+echo ""
+
+if [[ "$DRY_RUN" == true ]]; then
+    echo -e "${YELLOW}[DRY RUN] Would run:${NC}"
+    echo "  $AUTOPILOT_BIN $JSON_FILE ${RUN_OPTS[*]}"
+else
+    "$AUTOPILOT_BIN" "$JSON_FILE" "${RUN_OPTS[@]}"
+fi
+
+echo ""
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}  Done${NC}"
+echo -e "${GREEN}  Results written to: $DOMAIN_FILE${NC}"
+echo -e "${GREEN}========================================${NC}"

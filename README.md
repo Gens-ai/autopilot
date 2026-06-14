@@ -369,6 +369,12 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 
 Pass an optional number `N` to override the default iterations from `autopilot.json`. Lower defaults optimize for token frugality.
 
+**Subcommands** (invoked via the `autopilot` bash wrapper):
+
+| Command | Description |
+|---------|-------------|
+| `autopilot test-stories <domain.md>` | Audit existing features against a domain user story file |
+
 ### Command Loop Mode
 
 Run any slash command repeatedly with fresh sessions:
@@ -388,6 +394,29 @@ autopilot /review-pr 123 --max 3        # Run /review-pr with args, 3 times
 - Running a review or analysis command multiple times
 
 **Note:** Use `--max N` to specify iterations. Without it, defaults to 10.
+
+### User Story Testing Mode
+
+Autopilot can audit existing features against a set of user stories, documenting findings inline as it goes — without implementing anything.
+
+```bash
+# Test all user stories in a domain file (fresh session per story)
+autopilot test-stories docs/testing/domains/01-auth-and-registration.md
+
+# Skip JSON generation (re-run with existing task file)
+autopilot test-stories docs/testing/domains/01-auth-and-registration.md --skip-gen
+
+# Use a specific model
+autopilot test-stories docs/testing/domains/02-events.md --model sonnet
+```
+
+**How it works:**
+1. **Generate** — runs `/test-user-stories <domain-file>` once to parse the domain file and produce a task JSON at `docs/autopilot/testing/{domain-name}/{domain-name}.json`
+2. **Test** — runs the task JSON with fresh sessions, one per story
+
+Each story's session: navigates to the feature in a browser, inspects the relevant code, writes an inline finding directly into the domain file (`- no issue` / `- fix:` / `- feature:` / `- suggestion:` / `- blocked:`), and checks permission gates. High-stakes stories (payments, permissions, destructive actions) also get a negative browser test as an unauthorized user.
+
+**Setting up a domain file:** See `commands/test-user-stories.md` for the expected format and how to split a large user story document into domain-focused files.
 
 ## How It Works
 

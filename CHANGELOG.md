@@ -2,6 +2,15 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-06-14
+
+### Added
+- **`autopilot test-stories <domain-file>`** — New subcommand for auditing existing features against user stories. Accepts a markdown domain file, generates a task JSON via `/test-user-stories`, then runs a fresh-session-per-story testing loop. Each session navigates to the feature, inspects code, writes inline findings (`- no issue` / `- fix:` / `- feature:` / `- suggestion:` / `- blocked:`), and checks permission gates. High-stakes stories (financials, permissions, destructive actions) also receive a negative browser test as an unauthorized user. A SUMMARY session writes a severity-triaged report to the domain file when all stories are done.
+- **`commands/test-user-stories.md`** — Slash command that parses a domain-format user story file, discovers relevant code via codebase search, and produces a structured task JSON optimized for feature auditing rather than implementation. Framework-agnostic: adapts code discovery to any stack.
+- **Subcommand dispatch in `run.sh`** — `autopilot <word>` now dispatches to a sibling `autopilot-<word>` script, enabling a clean `autopilot test-stories` CLI surface. Unknown subcommands print a helpful usage message.
+
+---
+
 ## 2026-06-08
 
 ### Changed
