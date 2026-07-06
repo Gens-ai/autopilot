@@ -121,6 +121,16 @@ fi
 ln -s "$SCRIPT_DIR/cleanup.sh" ~/.local/bin/autopilot-cleanup
 echo "  Linked: cleanup.sh → ~/.local/bin/autopilot-cleanup"
 
+# Symlink status.sh
+if [ -L ~/.local/bin/autopilot-status ]; then
+    rm ~/.local/bin/autopilot-status
+elif [ -f ~/.local/bin/autopilot-status ]; then
+    echo "Backing up existing ~/.local/bin/autopilot-status to autopilot-status.bak"
+    mv ~/.local/bin/autopilot-status ~/.local/bin/autopilot-status.bak
+fi
+ln -s "$SCRIPT_DIR/status.sh" ~/.local/bin/autopilot-status
+echo "  Linked: status.sh → ~/.local/bin/autopilot-status"
+
 # Symlink autopilot-test-stories
 if [ -L ~/.local/bin/autopilot-test-stories ]; then
     rm ~/.local/bin/autopilot-test-stories
@@ -141,12 +151,14 @@ echo "  /autopilot         - Run TDD execution (inside Claude)"
 echo "  /autopilot init    - Initialize project configuration (inside Claude)"
 echo "  /autopilot stop    - Stop run.sh wrapper gracefully (inside Claude)"
 echo "  /autopilot cancel  - Cancel hook-based loop (inside Claude)"
+echo "  /autopilot status  - Read-only health check on any active loop (inside Claude)"
 echo "  /autopilot analyze - Analyze session analytics (inside Claude)"
 echo "  /test-user-stories - Parse domain file and generate testing task JSON (inside Claude)"
 echo ""
 echo "  autopilot                              - Token-frugal wrapper (from terminal)"
 echo "  autopilot test-stories <domain.md>     - Audit user stories against existing features"
 echo "  autopilot-cleanup                      - Kill orphaned Claude processes (from terminal)"
+echo "  autopilot-status [taskfile]            - Read-only health check, no Claude session needed (from terminal)"
 echo ""
 echo "Usage:"
 echo "  autopilot docs/autopilot/feature/feature.json    # Fresh context per requirement"

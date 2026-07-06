@@ -15,6 +15,7 @@ This prompt is structured in phases:
 /autopilot init                             # Initialize project configuration
 /autopilot stop                             # Stop run.sh loop gracefully
 /autopilot cancel                           # Cancel hook-based loop
+/autopilot status                           # Read-only health check on any active loop
 /autopilot <file.json> [max-iterations]    # TDD task completion mode (default)
 /autopilot tests [target%] [max-iterations] # Test coverage mode
 /autopilot lint [max-iterations]            # Linting mode
@@ -160,14 +161,15 @@ Based on the argument ($ARGUMENTS), determine the mode:
 1. **If argument is `init`** → Run `/autopilot init` command (invoke the init.md command)
 2. **If argument is `stop`** → Stop mode (signal run.sh to exit)
 3. **If argument is `cancel`** → Cancel mode (remove loop state file)
-4. **If argument ends with `.json` or `.md`** → TDD task completion mode
-5. **If argument starts with `tests`** → Test coverage mode
-6. **If argument starts with `lint`** → Linting mode
-7. **If argument starts with `entropy`** → Entropy/cleanup mode
-8. **If argument starts with `rollback`** → Rollback mode
-9. **If argument is `metrics`** → Metrics report mode
-10. **If argument is `analyze`** → Session analytics mode
-11. **If argument starts with `/`** → Command loop mode (run slash command repeatedly)
+4. **If argument is `status`** → Status mode (read-only health check)
+5. **If argument ends with `.json` or `.md`** → TDD task completion mode
+6. **If argument starts with `tests`** → Test coverage mode
+7. **If argument starts with `lint`** → Linting mode
+8. **If argument starts with `entropy`** → Entropy/cleanup mode
+9. **If argument starts with `rollback`** → Rollback mode
+10. **If argument is `metrics`** → Metrics report mode
+11. **If argument is `analyze`** → Session analytics mode
+12. **If argument starts with `/`** → Command loop mode (run slash command repeatedly)
 
 ### 0d. Analytics Initialization
 
@@ -278,6 +280,24 @@ Steps:
    Note: Any work in progress will complete before the loop stops.
    ```
 
+## Mode: Status
+
+For `status` argument. Read-only health check on any active or recent autopilot loop in this repo — process liveness, loop iteration, task progress, and recent activity. Makes no changes: kills nothing, removes nothing, safe to run anytime including while a loop is actively working.
+
+**Do not check for autopilot.json** - this mode should work regardless of configuration.
+
+Steps:
+1. Run the bundled script via Bash: `autopilot-status` (falls back to `$(dirname "$(readlink -f "$(command -v autopilot)")")/status.sh` if `autopilot-status` isn't on PATH — that resolves through the `~/.local/bin/autopilot` symlink to the repo, where `status.sh` lives alongside `run.sh`).
+2. If neither is found, tell the user autopilot doesn't appear to be installed via `install.sh` and to re-run it.
+3. Read the script's output and present it to the user, adding interpretation rather than repeating it verbatim:
+   - If a wrapper is active and idle time is small, just confirm it's healthy — no need to elaborate.
+   - If idle time is large (flagged yellow/red by the script), note it without alarm: run.sh's own 30-minute no-progress timeout is the real backstop, so this is informational.
+   - If the notes file is flagged stale, mention it's harmless (git history and the task JSON `passes` flags are ground truth) rather than something to fix.
+   - If a stuck requirement is listed, surface its `blockedReason` and mention `/autopilot rollback <id>` as an option.
+   - If a stale lock (dead PID) is found, mention `/autopilot stop` or manual `rm` of the lock file as options — do not remove it yourself in this mode.
+   - If multiple task files are ambiguous (script says it can't determine which is active), say so plainly rather than guessing.
+4. If nothing is running at all, state that clearly and stop - do not start a new loop from this mode.
+
 ## Mode: TDD Task Completion (default)
 
 For file paths (`.json` or `.md` files). Uses Test-Driven Development.
@@ -336,11 +356,11 @@ Process ONE requirement at a time. Pick the next workable incomplete requirement
 4. If requirement has an issue field then append issue reference to commit messages
 
 TDD Cycle:
-- RED: Write failing test and run TEST_CMD and VERIFY TEST FAILS
+- RED: Write failing test and run it scoped to just the new test file (pass the file path as an argument to TEST_CMD, e.g. TEST_CMD path/to/new.test.ts, using whatever scoping syntax this project's test runner supports) and VERIFY TEST FAILS. This phase only needs to confirm the new test is red, not guard against regressions, so do not pay for the full suite here. If the test command's scoping syntax is unclear or does not cleanly isolate a single file, fall back to the full TEST_CMD.
   - If test passes before implementation then mark invalidTest true with invalidTestReason and skip to next
   - Only after confirming test failure then commit and proceed to implementation
-- GREEN: Write minimal implementation and run TEST_CMD to confirm pass then commit
-- REFACTOR: Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and TEST_CMD and LINT_CMD to verify green then commit
+- GREEN: Write minimal implementation and run the FULL TEST_CMD (not scoped) to confirm pass then commit. This is the first real regression gate, so it must cover the whole suite, not just the new file.
+- REFACTOR: Run code-simplifier on ONLY the files you modified for this requirement then run TYPECHECK_CMD and the FULL TEST_CMD and LINT_CMD to verify green then commit
 
 Mark tdd phases as you complete each.
 Mark requirement passes true when all three phases done.
@@ -1124,16 +1144,18 @@ This avoids running code-simplifier on untouched files and keeps refactoring foc
 
 ## TDD Rules (Task Completion Mode)
 
-1. **Red**: Write tests covering ALL acceptance criteria, run tests, VERIFY they FAIL
+1. **Red**: Write tests covering ALL acceptance criteria, run them scoped to just the new test file, VERIFY they FAIL
    - Read the `acceptance` array - each criterion becomes a test case
    - Write tests that will fail until the implementation is complete
+   - Scope the test run to the new file only (e.g. pass its path to the test command) - Red only needs to confirm the new test fails, not re-verify the whole suite, so running everything here is wasted cost. Fall back to the full command if this test runner's scoping syntax isn't clear.
    - If any test passes before implementation, the test is invalid
    - Mark the requirement as `invalidTest: true` with reason and skip to next
    - Only proceed to Green phase after confirming ALL tests fail
 2. **Green**: Write minimal code to make ALL tests pass
    - Implement just enough to satisfy each acceptance criterion
    - Do not over-engineer or add unrequested features
-3. **Refactor**: Run code-simplifier, then verify tests still green
+   - Run the FULL test command (not scoped) - this is the first real regression gate, so it must cover the whole suite
+3. **Refactor**: Run code-simplifier, then verify tests still green with the FULL test command
 4. **Never skip**: All three phases required for each requirement
 5. **One at a time**: Complete full TDD cycle before next requirement
 

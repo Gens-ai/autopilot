@@ -2,6 +2,20 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-07-05 (late evening)
+
+### Changed
+- **Red phase scoped to the new test file** - On a large suite, running the full test command three times per requirement (Red, Green, Refactor) is expensive, and Red only needs to confirm the new test is red - it isn't a regression gate. Red now runs the test command scoped to just the new test file (e.g. passing its path as an argument), falling back to the full command if the runner's scoping syntax isn't clear. Green and Refactor are unchanged - they still run the full suite, since those are the actual pre-commit regression gates.
+
+---
+
+## 2026-07-05 (evening)
+
+### Added
+- **`/autopilot status` and `autopilot-status`** - Read-only health check for any active or recent autopilot loop: wrapper process liveness and elapsed time, loop iteration and time since last hook activity, task progress (passed/stuck/invalid counts, the current in-progress requirement, stuck reasons), recent commits, notes-file staleness, and analytics. Kills nothing, removes nothing, safe to run anytime including mid-run. Available both as a Claude Code mode (works from any session in the project) and a standalone terminal command (`status.sh`, symlinked by `install.sh`, requires no Claude session at all). Motivated by repeatedly hand-checking a long-running roadmap loop via ad-hoc `ps`/`jq`/`git log` commands. Discovered and fixed during testing: the between-iterations fallback (loop-state.md briefly absent) initially guessed the wrong task file when a directory held more than one `*.json` task file — it now asks the live wrapper process for its actual argv rather than glob-guessing, and refuses to guess (rather than silently picking one) when the process is gone and multiple candidates remain ambiguous.
+
+---
+
 ## 2026-07-05
 
 ### Fixed

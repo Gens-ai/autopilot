@@ -89,6 +89,7 @@ This creates symlinks:
 - `~/.claude/hooks/autopilot-stop-hook.sh` → repo (loop mechanism)
 - `~/.local/bin/autopilot` → repo/`run.sh` (terminal command)
 - `~/.local/bin/autopilot-cleanup` → repo/`cleanup.sh` (process cleanup)
+- `~/.local/bin/autopilot-status` → repo/`status.sh` (read-only health check)
 
 The install script also registers the stop hook in `~/.claude/settings.json` under `hooks.Stop` — the only place Claude Code reads hook configuration from. (Do **not** use `~/.claude/hooks.json`; Claude Code ignores that file.)
 
@@ -358,6 +359,7 @@ Progress is logged to `*-notes.md` alongside the task file. Learnings are append
 | `/autopilot init` | Initialize project configuration (one-time setup) |
 | `/autopilot stop` | Stop run.sh wrapper gracefully |
 | `/autopilot cancel` | Cancel hook-based loop (remove state file) |
+| `/autopilot status` | Read-only health check on any active loop - no changes made |
 | `/autopilot file.json [N]` | TDD task completion (default: 15 iterations) |
 | `/autopilot file.json --start-from 5` | Resume from requirement ID 5 |
 | `/autopilot rollback 3` | Rollback to before requirement 3 started |
@@ -494,6 +496,8 @@ Before every commit, autopilot runs:
 - `lint` - Linter
 
 If any fail, Claude fixes the issue before committing.
+
+**Red phase is scoped, Green/Refactor run the full suite.** On a large test suite, running everything three times per requirement (Red, Green, Refactor) adds up. Red only needs to confirm the new test fails, so it runs scoped to just the new test file; Green and Refactor are the actual regression gates before a commit, so they always run the full `tests` command. If the project's test runner doesn't have an obvious way to scope to one file, Red falls back to the full command too.
 
 ### Code Simplifier
 
@@ -801,6 +805,17 @@ See `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json` for co
 
 ## Troubleshooting
 
+### Checking on a running loop
+
+**Symptom:** You started `autopilot` a while ago (maybe in another terminal, maybe hours ago) and want to know if it's still healthy without hunting through `ps`, lock files, and the task JSON by hand.
+
+**Solution:** Run `/autopilot status` (inside any Claude Code session in the project) or `autopilot-status` (from any terminal — no Claude session required). Both report: whether the wrapper process is alive and for how long, the loop's current iteration and time since the last hook activity, task progress (passed/stuck/invalid counts and the current in-progress requirement), recent commits, and whether the notes file has fallen out of sync with actual progress (harmless — git and the task JSON are ground truth). It changes nothing; safe to run anytime, including mid-run.
+
+```bash
+autopilot-status                                        # auto-discover any active loop in this repo
+autopilot-status docs/autopilot/my-feature/my-feature.json  # check a specific task file
+```
+
 ### Orphaned Claude processes accumulating
 
 **Symptom:** System memory fills up, new Claude sessions get `Killed`, `ps aux | grep claude` shows dozens of old processes.
@@ -1000,7 +1015,7 @@ Remove the symlinks:
 
 ```bash
 rm ~/.claude/commands/{prd,tasks,autopilot,autopilot:init,analyze}.md ~/.claude/AGENTS.md
-rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup
+rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup ~/.local/bin/autopilot-status
 rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
 
