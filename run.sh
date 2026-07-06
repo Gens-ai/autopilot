@@ -154,7 +154,7 @@ MAX_ITERATIONS=10  # Default: 10 iterations for command mode
 DELAY=2
 DRY_RUN=false
 CLEANUP=false
-MODEL=""  # Empty means use Claude's default (opus)
+MODEL=""  # Precedence: --model flag > autopilot.json "model" > user's Claude Code default
 TASKFILE=""
 COMMAND=""  # Slash command for command loop mode
 COMMAND_ARGS=""  # Arguments for the slash command
@@ -453,6 +453,13 @@ print_status() {
     echo -e "${BLUE}Remaining:${NC} $incomplete"
     echo -e "${BLUE}----------------------------------------${NC}"
 }
+
+# Model default from autopilot.json when --model wasn't passed. Spawned sessions
+# otherwise inherit the user's personal default model, which is often a pricier
+# tier than well-specified TDD work needs.
+if [[ -z "$MODEL" && -f autopilot.json ]] && command -v jq &>/dev/null; then
+    MODEL=$(jq -r '.model // empty' autopilot.json 2>/dev/null)
+fi
 
 # Build Claude CLI options (shared between modes)
 # --allowedTools: pre-approve all tools so autopilot runs without permission prompts

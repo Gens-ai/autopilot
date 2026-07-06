@@ -173,7 +173,7 @@ autopilot docs/autopilot/feature/feature.json
 ```bash
 autopilot tasks.json              # 1 requirement per session (most frugal)
 autopilot tasks.json --batch 3    # 3 requirements per session (faster)
-autopilot tasks.json --model sonnet  # Use Sonnet instead of Opus (faster, cheaper)
+autopilot tasks.json --model sonnet  # Model for spawned sessions (otherwise: autopilot.json "model", else your Claude default)
 autopilot tasks.json --delay 5    # 5 second pause between sessions
 autopilot tasks.json --dry-run    # Preview without executing
 autopilot tasks.json --cleanup    # Kill stale processes before starting
@@ -719,6 +719,7 @@ The `autopilot.json` file stores project-specific settings. Created by `/autopil
 
 | Field | Description |
 |-------|-------------|
+| `model` | Default Claude model for `run.sh` sessions (e.g. `"sonnet"`). `--model` flag overrides; `null` uses your Claude Code default — which may be a pricier tier than TDD grunt work needs |
 | `project.type` | Project language/framework (nodejs, python, go, etc.) |
 | `project.conventions` | Test file patterns and directory locations |
 | `feedbackLoops` | Commands for typecheck, tests, and lint |
@@ -796,7 +797,7 @@ See `examples/autopilot-monorepo.json` and `examples/tasks-monorepo.json` for co
 - **Stop the wrapper**: Use `/autopilot stop` to stop run.sh, or Ctrl+C in that terminal
 - **Cancel the loop**: Use `/autopilot cancel` to stop the hook-based loop mid-session
 - **Keep PRDs small**: Smaller scope = better results
-- **Use Sonnet for speed**: `--model sonnet` is faster and cheaper for straightforward tasks; save Opus for complex reasoning
+- **Use Sonnet for speed**: `--model sonnet` (or `"model": "sonnet"` in autopilot.json) is faster and cheaper for straightforward tasks; save the big models for `/prd` and `/tasks`, where the design judgment happens. Without either, sessions run on your personal default model — check what that is before a long run
 
 ## Troubleshooting
 

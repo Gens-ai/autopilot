@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
   "version": "1.0.0",
+  "model": null,
 
   "project": {
     "type": null,

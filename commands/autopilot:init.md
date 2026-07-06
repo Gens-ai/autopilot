@@ -203,6 +203,7 @@ Construct the configuration based on all detected values:
 {
   "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/autopilot.schema.json",
   "version": "1.0.0",
+  "model": null,
   "project": {
     "type": "<detected-type>",
     "conventions": {
@@ -244,6 +245,8 @@ Construct the configuration based on all detected values:
   }
 }
 ```
+
+The `model` field sets the default Claude model for `run.sh`-spawned sessions (the `--model` CLI flag overrides it; `null` uses the user's Claude Code default). Leave it `null` unless the user asks for a specific tier — suggest `"sonnet"` if they mention cost, since well-specified TDD requirements rarely need the priciest model.
 
 #### 4.3 Review with User
 

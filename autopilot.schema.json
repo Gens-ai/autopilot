@@ -4,7 +4,12 @@
   "title": "Autopilot Configuration",
   "description": "Configuration file for Autopilot - autonomous TDD development with Claude Code",
   "type": "object",
-  "required": ["version", "project", "feedbackLoops", "iterations"],
+  "required": [
+    "version",
+    "project",
+    "feedbackLoops",
+    "iterations"
+  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -15,29 +20,64 @@
       "description": "Configuration schema version",
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Default Claude model for run.sh-spawned sessions (e.g. 'sonnet', 'opus', 'haiku', or a full model name). The --model CLI flag overrides this; null or absent uses the user's Claude Code default model. Well-specified TDD requirements usually don't need the priciest tier."
+    },
     "project": {
       "type": "object",
       "description": "Project type and conventions",
-      "required": ["type", "conventions"],
+      "required": [
+        "type",
+        "conventions"
+      ],
       "properties": {
         "type": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Project type/language",
-          "enum": ["nodejs", "python", "go", "rust", "ruby", "java", "typescript", "php", "dotnet", "other", null]
+          "enum": [
+            "nodejs",
+            "python",
+            "go",
+            "rust",
+            "ruby",
+            "java",
+            "typescript",
+            "php",
+            "dotnet",
+            "other",
+            null
+          ]
         },
         "conventions": {
           "type": "object",
           "properties": {
             "testFilePattern": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Glob pattern for test files (e.g., '*.test.ts', '*_test.py')"
             },
             "testDirectory": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Directory containing tests (e.g., 'tests/', '__tests__/')"
             },
             "sourceDirectory": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Main source directory (e.g., 'src/', 'lib/')"
             }
           }
@@ -52,7 +92,10 @@
           "type": "object",
           "properties": {
             "command": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Command to run type checking (e.g., 'npm run typecheck', 'tsc --noEmit', 'mypy .')"
             },
             "enabled": {
@@ -71,7 +114,10 @@
           "type": "object",
           "properties": {
             "command": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Default command to run tests (e.g., 'npm test', 'pytest', 'go test ./...')"
             },
             "enabled": {
@@ -89,15 +135,24 @@
               "description": "Test commands per test type. If a requirement specifies testType, use the corresponding command.",
               "properties": {
                 "unit": {
-                  "type": ["string", "null"],
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "Command for unit tests (e.g., 'npm test -- --testPathPattern=unit')"
                 },
                 "integration": {
-                  "type": ["string", "null"],
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "Command for integration tests (e.g., 'npm test -- --testPathPattern=integration')"
                 },
                 "e2e": {
-                  "type": ["string", "null"],
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "Command for end-to-end tests (e.g., 'npm run test:e2e', 'playwright test')"
                 }
               }
@@ -108,7 +163,10 @@
           "type": "object",
           "properties": {
             "command": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Command to run linting (e.g., 'npm run lint', 'eslint .', 'ruff check .')"
             },
             "enabled": {
@@ -171,20 +229,37 @@
       "description": "Git server configuration",
       "properties": {
         "type": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Server type",
-          "enum": ["github", "gitlab", "bitbucket", null]
+          "enum": [
+            "github",
+            "gitlab",
+            "bitbucket",
+            null
+          ]
         },
         "owner": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Repository owner/organization"
         },
         "repo": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Repository name"
         },
         "mcp": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "MCP server name if configured (e.g., 'github' for GitHub MCP)"
         }
       }
@@ -195,16 +270,23 @@
       "properties": {
         "patterns": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Discovered patterns (e.g., 'React', 'monorepo', 'microservices')"
         },
         "architecture": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Brief description of project architecture"
         },
         "dependencies": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Key architectural dependencies"
         }
       }
@@ -222,7 +304,9 @@
             },
             "patterns": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Error message patterns to ignore (regex)"
             }
           }
@@ -232,7 +316,9 @@
           "properties": {
             "failingTests": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Names or patterns of known-failing tests to skip"
             }
           }
@@ -246,7 +332,9 @@
             },
             "patterns": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Error message patterns to ignore (regex)"
             }
           }
@@ -259,12 +347,16 @@
       "properties": {
         "exclude": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Glob patterns for files to exclude from coverage targeting (e.g., generated/*, vendor/*)"
         },
         "prioritize": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Glob patterns for critical paths to prioritize (e.g., src/auth/*, src/payments/*)"
         },
         "recentDays": {
@@ -287,13 +379,19 @@
           "type": "object",
           "properties": {
             "file": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "default": "CHANGELOG.md",
               "description": "Path to changelog file"
             },
             "format": {
               "type": "string",
-              "enum": ["keepachangelog", "conventional"],
+              "enum": [
+                "keepachangelog",
+                "conventional"
+              ],
               "default": "keepachangelog",
               "description": "Changelog format style"
             }
@@ -309,7 +407,9 @@
             },
             "sections": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "README sections to update (e.g., features, usage)"
             }
           }
@@ -326,7 +426,10 @@
           "description": "Whether to collect metrics across sessions"
         },
         "file": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "default": "docs/autopilot/autopilot-metrics.json",
           "description": "File path for storing metrics data"
         }
@@ -391,25 +494,58 @@
                   "typecheck": {
                     "type": "object",
                     "properties": {
-                      "command": { "type": ["string", "null"] },
-                      "enabled": { "type": "boolean", "default": true },
-                      "sandbox": { "type": "boolean", "default": true }
+                      "command": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "sandbox": {
+                        "type": "boolean",
+                        "default": true
+                      }
                     }
                   },
                   "tests": {
                     "type": "object",
                     "properties": {
-                      "command": { "type": ["string", "null"] },
-                      "enabled": { "type": "boolean", "default": true },
-                      "sandbox": { "type": "boolean", "default": true }
+                      "command": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "sandbox": {
+                        "type": "boolean",
+                        "default": true
+                      }
                     }
                   },
                   "lint": {
                     "type": "object",
                     "properties": {
-                      "command": { "type": ["string", "null"] },
-                      "enabled": { "type": "boolean", "default": true },
-                      "sandbox": { "type": "boolean", "default": true }
+                      "command": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "sandbox": {
+                        "type": "boolean",
+                        "default": true
+                      }
                     }
                   }
                 }
@@ -424,9 +560,18 @@
       "description": "Issue tracker integration settings for linking work to GitHub Issues or other trackers",
       "properties": {
         "type": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Issue tracker type",
-          "enum": ["github", "gitlab", "linear", "jira", null]
+          "enum": [
+            "github",
+            "gitlab",
+            "linear",
+            "jira",
+            null
+          ]
         },
         "linkCommits": {
           "type": "boolean",
@@ -439,11 +584,17 @@
           "description": "Comment on issues and update labels when requirements complete"
         },
         "labelOnStart": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Label to apply when starting work on a requirement (e.g., 'in-progress')"
         },
         "labelOnComplete": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Label to apply when requirement passes (e.g., 'done')"
         }
       }
@@ -458,11 +609,17 @@
           "description": "Whether to send notifications on completion"
         },
         "command": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Shell command to run on completion. Receives JSON with results via stdin. E.g., 'notify-send \"Autopilot\" \"$1\"' or 'say \"Autopilot complete\"'"
         },
         "webhook": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Webhook URL to POST results to on completion"
         },
         "ntfy": {
@@ -470,7 +627,10 @@
           "description": "ntfy.sh notification settings",
           "properties": {
             "topic": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "ntfy topic name (e.g., 'my-autopilot-notifications')"
             },
             "server": {
