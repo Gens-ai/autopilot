@@ -108,13 +108,20 @@ Proceed to argument parsing and mode execution.
 
 ### 0b. Parallel Agent Awareness
 
-Check for other running autopilot instances:
+`run.sh` writes its lock file to `$(dirname <taskfile>)/run.pid` — **not always** `docs/autopilot/<feature>/run.pid`. Task files don't always live under `docs/autopilot/`; this project, for example, keeps them in `docs/tasks/prds/`. Checking only the `docs/autopilot/*/run.pid` glob misses a live `run.sh` loop whenever the task file lives elsewhere, so check both locations:
 
 ```bash
 ls docs/autopilot/*/run.pid 2>/dev/null
+# Also check next to the task file itself, wherever that is:
+ls "$(dirname "<taskfile-arg>")/run.pid" 2>/dev/null
 ```
 
-If other `run.pid` files exist (besides your own feature's):
+**Own-wrapper exemption — check this FIRST.** When `run.sh` spawns this session, it passes its own PID as `--wrapper-pid <N>` in the /autopilot arguments (and exports `AUTOPILOT_WRAPPER_PID`). That wrapper holds the `run.pid` lock next to the task file for its entire run, so finding it there is expected. If the PID inside that `run.pid` equals the `--wrapper-pid` argument (or `$AUTOPILOT_WRAPPER_PID`), the lock belongs to the wrapper that launched you — **this is NOT a collision; proceed normally.** Never report your own wrapper as another autopilot instance.
+
+If a `run.pid` file exists **next to this exact task file**, its PID is alive (`kill -0 <pid>`), and it is NOT your own wrapper (no `--wrapper-pid` was passed, or the PIDs differ):
+- This is a direct collision, not just a sibling agent — a `run.sh` loop is already actively working this same file and branch. **Stop before making any edits.** Do not start a competing session, and do not overwrite that PID/loop-state file. Tell the user a live autopilot loop is already running (PID, how long it's been running, which requirement it's on) and ask how they want to proceed (wait, stop it first, or override).
+
+If other `run.pid` files exist for **different** task files (sibling agents, not a collision):
 - **Always use `git add <specific-files>`** — never `git add -A` or `git add .`, as other agents may have staged their own changes simultaneously.
 - **Use `hooks/git-commit` instead of `git commit`** to serialize commits and prevent staging-area races. Find it at `~/.claude/hooks/git-commit` or `hooks/git-commit` relative to the autopilot repo root.
 - **Before modifying a shared file**, check if another agent recently touched it: `git log --oneline -5 -- <file>`. If so, read the current file state before editing to avoid clobbering their work.
@@ -127,6 +134,8 @@ Parse `$ARGUMENTS` to extract:
 3. **Mode-specific params** - Target percentage for tests mode, file path for TDD mode, command name for command mode
 4. **--start-from ID** - Optional flag to resume from a specific requirement ID (TDD mode only)
 5. **--batch N** - Complete N requirements then stop (TDD mode only, default: all)
+6. **--wrapper-pid N** - Internal, added by run.sh: the wrapper's own PID, so its `run.pid` lock is recognized as ours instead of a foreign instance (see 0b)
+7. **--state-dir DIR** - Internal, added by run.sh: directory for loop-state.md and stop-signal files (see 0e)
 
 Examples:
 - `/autopilot init` → Run initialization wizard
@@ -202,10 +211,12 @@ If analytics are enabled in `autopilot.json` (default: true), initialize session
 
 ### 0e. State Directory
 
-Determine the state directory by running:
+If a `--state-dir DIR` argument was passed (run.sh always passes it), use DIR as the state directory. Otherwise determine it by running:
 ```bash
 bash -c 'echo "${AUTOPILOT_STATE_DIR:-.autopilot}"'
 ```
+(The argv flag is authoritative — environment variables do not always propagate into tool shells, which strands state files in `.autopilot/` while run.sh watches the task-file directory.)
+
 Store the result as **STATE_DIR**. Create it if needed: `mkdir -p STATE_DIR`.
 
 Use STATE_DIR for **all** loop-state.md and stop-signal file operations throughout this session. Do not hardcode `.autopilot/` for these files.
@@ -227,9 +238,9 @@ For `stop` argument. Signals the run.sh loop to exit gracefully.
 **Do not check for autopilot.json** - this mode should work regardless of configuration.
 
 Steps:
-1. Find running autopilot PID files:
+1. Find running autopilot PID files. `run.pid` lives next to the task file, which is NOT always under `docs/autopilot/` (e.g. this could be `docs/tasks/prds/run.pid`), so search the whole repo:
    - If `AUTOPILOT_STATE_DIR` is set in env: check `$AUTOPILOT_STATE_DIR/run.pid`
-   - Also search: `ls docs/autopilot/*/run.pid .autopilot/command.pid 2>/dev/null`
+   - Also search: `find . -maxdepth 5 \( -name run.pid -o -name command.pid \) -not -path "*/node_modules/*" 2>/dev/null`
    - Collect all found PID files
 2. If no PID files found, tell the user:
    ```

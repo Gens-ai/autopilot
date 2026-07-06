@@ -90,7 +90,7 @@ This creates symlinks:
 - `~/.local/bin/autopilot` → repo/`run.sh` (terminal command)
 - `~/.local/bin/autopilot-cleanup` → repo/`cleanup.sh` (process cleanup)
 
-The install script also creates `~/.claude/hooks.json` with the stop-hook configuration if it doesn't exist.
+The install script also registers the stop hook in `~/.claude/settings.json` under `hooks.Stop` — the only place Claude Code reads hook configuration from. (Do **not** use `~/.claude/hooks.json`; Claude Code ignores that file.)
 
 Updates to the repo are automatically available (just `git pull`).
 
@@ -420,6 +420,8 @@ Each story's session: navigates to the feature in a browser, inspects the releva
 
 ## How It Works
 
+> **Deep dive:** [docs/loop-mechanism.md](docs/loop-mechanism.md) documents the full machinery — the outer run.sh loop, the Stop-hook inner loop, every coordination file (`run.pid`, `loop-state.md`, `stop-signal`), the `--wrapper-pid`/`--state-dir` self-identification flags, hook registration, and the guards against each failure mode.
+
 ### Context and State Management
 
 When using `/autopilot` directly, the built-in loop mechanism runs within a single session—**context accumulates** between iterations. This is by design: Claude can see its previous work and self-correct. However, this means long-running tasks may hit context limits.
@@ -629,7 +631,7 @@ autopilot/                    # This repo (source of truth)
 ├── hooks/
 │   ├── stop-hook.sh         # Loop mechanism (intercepts exit, re-feeds prompt)
 │   ├── update-analytics.sh  # Populates analytics from git/task ground truth
-│   └── hooks.json           # Hook configuration template
+│   └── git-commit           # Commit mutex for parallel agents
 ├── examples/
 │   ├── brainstorm.md              # Example feature brainstorm
 │   ├── prd-user-auth.md           # Example PRD document
@@ -657,7 +659,7 @@ autopilot/                    # This repo (source of truth)
 │   └── analyze.md → repo
 ├── hooks/
 │   └── autopilot-stop-hook.sh → repo  # Loop mechanism
-├── hooks.json               # Hook configuration (created by install.sh)
+├── settings.json            # install.sh adds hooks.Stop entry here
 └── AGENTS.md → repo
 
 your-project/                # Generated during workflow
@@ -829,8 +831,8 @@ If you cancel mid-run, the stop hook may fire multiple times as iterations unwin
 
 Ensure the hooks are installed correctly:
 1. Check that `~/.claude/hooks/autopilot-stop-hook.sh` exists
-2. Check that `~/.claude/hooks.json` includes the autopilot stop hook
-3. Re-run `./install.sh` if needed
+2. Check that `~/.claude/settings.json` has the autopilot entry under `hooks.Stop` (`~/.claude/hooks.json` does NOT work — Claude Code never reads it)
+3. Re-run `./install.sh` if needed, then restart Claude Code sessions (hook config is read at session startup)
 
 ### Task file not found
 
@@ -1001,7 +1003,7 @@ rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup
 rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
 
-You may also want to remove the autopilot entry from `~/.claude/hooks.json` if you have other hooks configured.
+Also remove the autopilot entry from `hooks.Stop` in `~/.claude/settings.json`.
 
 Then delete the repo folder.
 

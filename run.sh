@@ -363,6 +363,9 @@ fi
 
 # Write our PID and ensure cleanup on exit
 echo $$ > "$PID_FILE"
+# Let spawned Claude sessions recognize this wrapper's own lock file
+# (prevents false "another autopilot instance is running" self-collisions)
+export AUTOPILOT_WRAPPER_PID=$$
 
 cleanup_on_exit() {
     # Kill any running Claude session and its children
@@ -547,9 +550,9 @@ LOOPSTATE
                     break
                 fi
 
-                # Timeout after 10 minutes of no activity
+                # Timeout after 30 minutes of no activity
                 IDLE_SECONDS=$((IDLE_SECONDS + 2))
-                if [[ "$IDLE_SECONDS" -ge 600 ]]; then
+                if [[ "$IDLE_SECONDS" -ge 1800 ]]; then
                     echo -e "${YELLOW}Timeout - terminating session${NC}"
                     kill_session "$CLAUDE_PID"
                     break
@@ -639,6 +642,10 @@ while true; do
     if [[ -n "$BATCH_SIZE" ]]; then
         AUTOPILOT_CMD="$AUTOPILOT_CMD --batch $BATCH_SIZE"
     fi
+    # Identify ourselves to the session: our run.pid is not a foreign instance,
+    # and state files must live next to the task file (env vars don't reliably
+    # reach the session's Bash tool, so pass both via argv)
+    AUTOPILOT_CMD="$AUTOPILOT_CMD --wrapper-pid $$ --state-dir $AUTOPILOT_STATE_DIR"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}[DRY RUN] Would execute:${NC}"
@@ -667,7 +674,7 @@ while true; do
         CURRENT_CLAUDE_PID=$CLAUDE_PID
 
         # Monitor for batch completion by checking task JSON
-        IDLE_TIMEOUT=600  # 10 minutes with no progress = assume stuck
+        IDLE_TIMEOUT=1800  # 30 minutes with no progress = assume stuck
         LAST_PROGRESS=0
         IDLE_SECONDS=0
 

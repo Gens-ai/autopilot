@@ -2,6 +2,26 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-07-05
+
+### Fixed
+- **Wrapper self-collision ("another autopilot instance is running")** - Sessions spawned by `run.sh` found the wrapper's own `run.pid` lock next to the task file, treated it as a foreign autopilot instance per the Phase 0b collision check, and refused to work — while `run.sh` idle-killed each dead session after 30 minutes and spawned another, making zero progress indefinitely. `run.sh` now passes `--wrapper-pid $$` (and exports `AUTOPILOT_WRAPPER_PID`) to the session, and 0b exempts a `run.pid` whose PID matches: your own parent wrapper is not a collision. A run.pid with a *different* live PID still stops the session as a genuine collision.
+- **Stop hook was never registered** - `install.sh` wrote the hook registration to `~/.claude/hooks.json`, a file Claude Code does not read (hooks live in `settings.json`). The within-session loop therefore never fired: `iteration` never advanced, completion never cleaned up state files, and sessions that stopped mid-requirement idled until run.sh's timeout killed them. `install.sh` now registers the hook in `~/.claude/settings.json` under `hooks.Stop` with the correct schema (jq-merged, idempotent, manual instructions if jq is missing) and removes an obsolete `hooks.json` if it contains only the autopilot entry. The shipped `hooks/hooks.json` template (obsolete format) is deleted.
+- **Invalid "allow" decision in stop-hook output** - The hook emitted `{"decision": "allow"}`, which is not a valid Stop-hook value ("allow" is expressed by omitting `decision`). All allow paths now emit `{}`.
+- **`/autopilot stop` couldn't find loops outside `docs/autopilot/`** - Stop mode only globbed `docs/autopilot/*/run.pid`, but `run.pid` lives next to the task file, which may be anywhere (e.g. `docs/tasks/prds/`). Stop mode now searches the repo with `find` for `run.pid`/`command.pid`.
+
+### Added
+- **`--state-dir` flag** - `run.sh` now passes the state directory to the session in argv (`--state-dir <taskfile-dir>`) instead of relying on `AUTOPILOT_STATE_DIR` env propagation, which does not reliably reach the session's tool shells. Previously the session could write `loop-state.md`/`stop-signal` to `.autopilot/` while run.sh and the stop hook watched the task-file directory, so neither saw the other's signals. The argv flag is authoritative; env resolution remains as fallback.
+- **Stale-state guard in stop-hook** - A `loop-state.md` untouched for over 24 hours is a leftover from a dead run (active loops rewrite it every iteration, and run.sh deletes it when killing sessions). The hook now removes it and allows exit instead of hijacking whatever session next stops in that directory.
+- **`docs/loop-mechanism.md`** - Architecture deep-dive on the loop machinery: the outer run.sh loop and inner Stop-hook loop, every coordination file (`run.pid`, `loop-state.md`, `stop-signal`), self-identification flags, hook registration, stop/cancel semantics, failure modes and their guards, and an end-to-end trace of one requirement. Linked from README's "How It Works".
+
+### Changed
+- **Idle timeouts raised from 10 to 30 minutes** - Both run.sh no-progress timeouts (task mode and command mode) now allow 30 minutes, since a single requirement's TDD cycle with typecheck + test + lint feedback loops can legitimately exceed 10 minutes without visible task-JSON progress.
+- **`autopilot test-stories`** - Runs the story-testing session with `CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000` so long domain-file findings aren't truncated.
+- **README** - All references to `~/.claude/hooks.json` corrected to `settings.json` `hooks.Stop` (installation notes, file-structure trees, troubleshooting, uninstall).
+
+---
+
 ## 2026-06-14
 
 ### Added

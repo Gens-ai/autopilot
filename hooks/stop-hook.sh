@@ -13,7 +13,8 @@
 #
 # Hook Output (JSON):
 #   { "decision": "block", "reason": "prompt", "systemMessage": "info" } - continue loop
-#   { "decision": "allow" } + SIGTERM to parent - force exit when complete
+#   {} + SIGTERM to parent - allow exit / force exit when complete
+#   (omitting "decision" means allow; "allow" is not a valid Stop-hook value)
 #
 
 # Don't exit on error - we need to handle errors gracefully
@@ -29,7 +30,18 @@ HOOK_INPUT=$(cat)
 
 # Check if state file exists - if not, allow exit (not in a loop)
 if [[ ! -f "$STATE_FILE" ]]; then
-    echo '{"decision": "allow"}'
+    echo '{}'
+    exit 0
+fi
+
+# Stale-state guard: an active loop rewrites this file every iteration (and
+# run.sh deletes it when killing a session), so a loop-state file untouched
+# for 24h is a leftover from a dead run. Remove it instead of hijacking an
+# unrelated session into the autopilot loop.
+if [[ -n "$(find "$STATE_FILE" -mmin +1440 2>/dev/null)" ]]; then
+    echo "Removing stale loop-state file (untouched >24h): $STATE_FILE" >&2
+    rm -f "$STATE_FILE"
+    echo '{}'
     exit 0
 fi
 
@@ -49,7 +61,7 @@ UPDATE_ANALYTICS="$HOOK_DIR/update-analytics.sh"
 if ! [[ "$iteration" =~ ^[0-9]+$ ]]; then
     echo "Error: Invalid iteration value: $iteration" >&2
     rm -f "$STATE_FILE"
-    echo '{"decision": "allow"}'
+    echo '{}'
     exit 0
 fi
 
@@ -57,7 +69,7 @@ fi
 if ! [[ "$max_iterations" =~ ^[0-9]+$ ]]; then
     echo "Error: Invalid max_iterations value: $max_iterations" >&2
     rm -f "$STATE_FILE"
-    echo '{"decision": "allow"}'
+    echo '{}'
     exit 0
 fi
 
@@ -86,7 +98,7 @@ if [[ "$max_iterations" -gt 0 && "$iteration" -ge "$max_iterations" ]]; then
     # Force exit by sending SIGTERM to the Claude process
     (sleep 0.5 && kill -TERM $PPID 2>/dev/null) &
 
-    echo '{"decision": "allow"}'
+    echo '{}'
     exit 0
 fi
 
@@ -142,7 +154,7 @@ if [[ -n "$TRANSCRIPT_FILE" && -f "$TRANSCRIPT_FILE" && -n "$completion_promise"
                 # Small delay to allow this script to return cleanly first
                 (sleep 0.5 && kill -TERM $PPID 2>/dev/null && echo "DEBUG: SIGTERM sent to $PPID" >&2) &
 
-                echo '{"decision": "allow"}'
+                echo '{}'
                 exit 0
             fi
         fi
@@ -157,7 +169,7 @@ prompt=$(awk '/^---$/{n++; next} n>=2' "$STATE_FILE")
 if [[ -z "$prompt" ]]; then
     echo "Error: No prompt found in state file" >&2
     rm -f "$STATE_FILE"
-    echo '{"decision": "allow"}'
+    echo '{}'
     exit 0
 fi
 

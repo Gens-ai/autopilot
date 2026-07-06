@@ -60,31 +60,44 @@ ln -s "$SCRIPT_DIR/hooks/git-commit" ~/.claude/hooks/git-commit
 chmod +x ~/.claude/hooks/git-commit
 echo "  Linked: git-commit → ~/.claude/hooks/git-commit"
 
-# Check if hooks.json exists and update it
-HOOKS_JSON=~/.claude/hooks.json
-if [ -f "$HOOKS_JSON" ]; then
-    # Check if autopilot hook is already configured
-    if grep -q "autopilot-stop-hook" "$HOOKS_JSON" 2>/dev/null; then
-        echo "  Hooks already configured in $HOOKS_JSON"
+# Register the Stop hook in ~/.claude/settings.json — the file Claude Code
+# actually reads. (Older installs wrote ~/.claude/hooks.json, which Claude Code
+# ignores entirely, so the loop hook never fired.)
+SETTINGS_JSON=~/.claude/settings.json
+HOOK_ENTRY='{"hooks":[{"type":"command","command":"~/.claude/hooks/autopilot-stop-hook.sh"}]}'
+if command -v jq >/dev/null 2>&1; then
+    if [ ! -f "$SETTINGS_JSON" ]; then
+        echo '{}' > "$SETTINGS_JSON"
+    fi
+    if jq -e '.hooks.Stop[]?.hooks[]? | select(.command | contains("autopilot-stop-hook"))' "$SETTINGS_JSON" >/dev/null 2>&1; then
+        echo "  Stop hook already registered in $SETTINGS_JSON"
     else
-        echo "  Note: Add autopilot stop-hook to your $HOOKS_JSON manually:"
-        echo '    "stop": [{"command": "~/.claude/hooks/autopilot-stop-hook.sh"}]'
+        SETTINGS_TMP=$(mktemp)
+        if jq --argjson entry "$HOOK_ENTRY" '.hooks.Stop = ((.hooks.Stop // []) + [$entry])' "$SETTINGS_JSON" > "$SETTINGS_TMP"; then
+            mv "$SETTINGS_TMP" "$SETTINGS_JSON"
+            echo "  Registered Stop hook in $SETTINGS_JSON"
+            echo "  (Restart running Claude Code sessions to pick it up)"
+        else
+            rm -f "$SETTINGS_TMP"
+            echo "  Could not update $SETTINGS_JSON — add this under \"hooks\" manually:"
+            echo '    "Stop": [{"hooks": [{"type": "command", "command": "~/.claude/hooks/autopilot-stop-hook.sh"}]}]'
+        fi
     fi
 else
-    # Create hooks.json with autopilot hook
-    cat > "$HOOKS_JSON" << 'HOOKEOF'
-{
-  "hooks": {
-    "stop": [
-      {
-        "command": "~/.claude/hooks/autopilot-stop-hook.sh",
-        "description": "Autopilot loop mechanism"
-      }
-    ]
-  }
-}
-HOOKEOF
-    echo "  Created: $HOOKS_JSON with autopilot stop-hook"
+    echo "  jq not found — add this to $SETTINGS_JSON manually under \"hooks\":"
+    echo '    "Stop": [{"hooks": [{"type": "command", "command": "~/.claude/hooks/autopilot-stop-hook.sh"}]}]'
+fi
+
+# Clean up the obsolete hooks.json from older installs (never read by Claude Code)
+HOOKS_JSON=~/.claude/hooks.json
+if [ -f "$HOOKS_JSON" ] && grep -q "autopilot-stop-hook" "$HOOKS_JSON" 2>/dev/null; then
+    if command -v jq >/dev/null 2>&1 && \
+       jq -e '(keys == ["hooks"]) and (.hooks | keys == ["stop"]) and ([.hooks.stop[].command] | all(contains("autopilot-stop-hook")))' "$HOOKS_JSON" >/dev/null 2>&1; then
+        rm "$HOOKS_JSON"
+        echo "  Removed obsolete $HOOKS_JSON (contained only the autopilot hook)"
+    else
+        echo "  Note: the autopilot entry in $HOOKS_JSON is obsolete and can be removed"
+    fi
 fi
 
 # Symlink run.sh to ~/.local/bin/autopilot
