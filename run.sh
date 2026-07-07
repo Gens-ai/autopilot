@@ -8,9 +8,10 @@
 # Usage:
 #   ./run.sh <taskfile.json> [options]    # Task file mode
 #   ./run.sh /<command> [options]          # Command loop mode
+#   ./run.sh [options]                     # Queue mode: drain docs/autopilot/queue.json
 #
 # Options:
-#   --batch N       Complete N requirements per session (default: 1, task mode only)
+#   --batch N       Complete N requirements per session (default: 1, task/queue mode)
 #   --max N         Maximum iterations/command runs (default: 10, command mode only)
 #   --delay N       Seconds to wait between sessions (default: 2)
 #   --model MODEL   Claude model to use (opus, sonnet, haiku, or full name)
@@ -25,6 +26,7 @@
 #   ./run.sh docs/autopilot/feature.json --delay 5
 #   ./run.sh /my-command --max 5
 #   ./run.sh /review-pr 123 --max 3
+#   ./run.sh                               # Work the task queue, entry by entry
 
 set -e
 
@@ -51,8 +53,10 @@ if [[ $# -gt 0 && "${1:0:1}" != "-" && "${1:0:1}" != "/" && "$1" != *.json && "$
         echo -e "${RED}Error: unknown subcommand '${SUBCMD}'${NC}"
         echo ""
         echo "Usage:"
+        echo "  autopilot                              # Work the task queue (docs/autopilot/queue.json)"
         echo "  autopilot <taskfile.json>              # Run task loop"
         echo "  autopilot /<slash-command> [args]      # Run slash command loop"
+        echo "  autopilot queue [add|rm|list|...]      # Manage the task queue"
         echo "  autopilot test-stories <domain-file>   # Test user stories"
         echo ""
         echo "Run 'autopilot --help' for full options."
@@ -205,9 +209,10 @@ while [[ $# -gt 0 ]]; do
             echo "Usage:"
             echo "  ./run.sh <taskfile.json> [options]    # Task file mode"
             echo "  ./run.sh /<command> [args] [options]  # Command loop mode"
+            echo "  ./run.sh [options]                    # Queue mode (no task file)"
             echo ""
             echo "Options:"
-            echo "  --batch N       Complete N requirements per session (default: 1, task mode)"
+            echo "  --batch N       Complete N requirements per session (default: 1, task/queue mode)"
             echo "  --max N         Maximum command runs (default: 10, command mode)"
             echo "  --delay N       Seconds to wait between sessions (default: 2)"
             echo "  --model MODEL   Claude model: opus, sonnet, haiku, or full name"
@@ -220,6 +225,10 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Command mode runs a slash command repeatedly with fresh sessions."
             echo "Example: ./run.sh /my-command --max 5"
+            echo ""
+            echo "Queue mode (no task file argument) works through the project task"
+            echo "queue at docs/autopilot/queue.json, running each queued task file to"
+            echo "completion in order. Manage the queue with 'autopilot queue'."
             echo ""
             echo "Requirements:"
             echo "  - Claude Code CLI installed"
@@ -267,12 +276,36 @@ if ! command -v claude &> /dev/null; then
     exit 1
 fi
 
+# No task file and no command: queue mode - drain the project task queue
+QUEUE_FILE="${AUTOPILOT_QUEUE_FILE:-docs/autopilot/queue.json}"
+if [[ "$MODE" == "task" && -z "$TASKFILE" ]]; then
+    MODE="queue"
+fi
+
 # Mode-specific validation
 if [[ "$MODE" == "command" ]]; then
     # Command mode validation
     if [[ -z "$COMMAND" ]]; then
         echo -e "${RED}Error: No command specified${NC}"
         echo "Usage: ./run.sh /<command> [args] [options]"
+        exit 1
+    fi
+elif [[ "$MODE" == "queue" ]]; then
+    # Queue mode validation - requires jq and an existing queue file
+    if ! command -v jq &> /dev/null; then
+        echo -e "${RED}Error: jq is required but not installed${NC}"
+        echo "Install jq using your package manager (e.g. 'sudo dnf install jq')."
+        exit 1
+    fi
+
+    if [[ ! -f "$QUEUE_FILE" ]]; then
+        echo -e "${RED}Error: No task file specified and no queue found at $QUEUE_FILE${NC}"
+        echo ""
+        echo "Either run a specific task file:"
+        echo "  autopilot <taskfile.json>"
+        echo ""
+        echo "Or queue task files for this project, then run 'autopilot' with no arguments:"
+        echo "  autopilot queue add docs/autopilot/<feature>/<feature>.json"
         exit 1
     fi
 else
@@ -287,14 +320,6 @@ else
         echo "  Arch:    sudo pacman -S jq"
         echo ""
         echo "Or visit: https://jqlang.github.io/jq/download/"
-        exit 1
-    fi
-
-    if [[ -z "$TASKFILE" ]]; then
-        echo -e "${RED}Error: No task file or command specified${NC}"
-        echo "Usage:"
-        echo "  ./run.sh <taskfile.json> [options]    # Task file mode"
-        echo "  ./run.sh /<command> [args] [options]  # Command loop mode"
         exit 1
     fi
 
@@ -333,7 +358,7 @@ else
     fi
 fi
 
-# --- Path setup: per-feature dirs for task mode, shared .autopilot/ for command mode ---
+# --- Path setup: per-feature dirs for task mode, shared .autopilot/ for command/queue mode ---
 if [[ "$MODE" == "task" ]]; then
     FEATURE_DIR=$(dirname "$TASKFILE")
     mkdir -p "$FEATURE_DIR"
@@ -341,6 +366,15 @@ if [[ "$MODE" == "task" ]]; then
     STOP_SIGNAL_FILE="$FEATURE_DIR/stop-signal"
     LOOP_STATE_FILE="$FEATURE_DIR/loop-state.md"
     export AUTOPILOT_STATE_DIR="$FEATURE_DIR"
+elif [[ "$MODE" == "queue" ]]; then
+    # The queue wrapper spawns a full task-mode run.sh per entry; those children
+    # manage their own per-feature PID/state files. This lock only guards
+    # against two queue drains running at once.
+    mkdir -p .autopilot
+    PID_FILE=".autopilot/queue.pid"
+    STOP_SIGNAL_FILE=".autopilot/queue-stop-signal"
+    LOOP_STATE_FILE=""
+    export AUTOPILOT_STATE_DIR=".autopilot"
 else
     mkdir -p .autopilot
     PID_FILE=".autopilot/command.pid"
@@ -453,6 +487,150 @@ print_status() {
     echo -e "${BLUE}Remaining:${NC} $incomplete"
     echo -e "${BLUE}----------------------------------------${NC}"
 }
+
+# ============================================================================
+# QUEUE MODE LOOP
+# ============================================================================
+# Drains the project task queue: picks the next runnable entry (via
+# autopilot-queue), runs a full task-mode run.sh on it as a child process, and
+# advances when the entry has nothing runnable left. A child that exits while
+# its task file still has runnable requirements was stopped or errored, so the
+# drain stops too instead of plowing ahead.
+if [[ "$MODE" == "queue" ]]; then
+    # Resolve the queue helper - sibling in the dev repo, or next to the
+    # ~/.local/bin/autopilot symlink after install.sh
+    QUEUE_BIN="$SCRIPT_DIR/autopilot-queue"
+    if [[ ! -x "$QUEUE_BIN" ]]; then
+        QUEUE_BIN="$(command -v autopilot-queue || true)"
+    fi
+    if [[ -z "$QUEUE_BIN" || ! -x "$QUEUE_BIN" ]]; then
+        echo -e "${RED}Error: autopilot-queue not found (re-run install.sh)${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Starting run.sh (queue mode)${NC}"
+    echo -e "Queue: ${QUEUE_FILE}"
+    echo -e "Batch size: ${BATCH_SIZE} requirement(s) per session"
+    if [[ -n "$MODEL" ]]; then
+        echo -e "Model: ${MODEL}"
+    fi
+    echo ""
+    "$QUEUE_BIN" list
+    echo ""
+
+    # Options forwarded to each per-entry child run. --model only if the user
+    # passed it explicitly - each child re-reads autopilot.json for the default.
+    CHILD_OPTS=(--batch "$BATCH_SIZE" --delay "$DELAY")
+    if [[ -n "$MODEL" ]]; then
+        CHILD_OPTS+=(--model "$MODEL")
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}[DRY RUN] Would drain the queue in the order above, running for each entry:${NC}"
+        echo "  ${BASH_SOURCE[0]} <taskfile> ${CHILD_OPTS[*]}"
+        exit 0
+    fi
+
+    # Remember the branch we started on: task mode checks out a feature branch
+    # per task file, so without returning here between entries each feature
+    # would stack on the previous one's branch instead of the shared base.
+    START_BRANCH=""
+    if git rev-parse --is-inside-work-tree &>/dev/null; then
+        START_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    fi
+
+    ENTRIES_RUN=0
+    while true; do
+        if check_stop; then
+            break
+        fi
+
+        NEXT_TASK="$("$QUEUE_BIN" next 2>/dev/null || true)"
+        if [[ -z "$NEXT_TASK" ]]; then
+            echo ""
+            echo -e "${GREEN}Queue drained - nothing runnable left${NC}"
+            break
+        fi
+
+        ENTRIES_RUN=$((ENTRIES_RUN + 1))
+        echo ""
+        echo -e "${BLUE}=== Queue entry $ENTRIES_RUN: $NEXT_TASK ===${NC}"
+        "$QUEUE_BIN" stamp start "$NEXT_TASK" || true
+
+        # Child in background + wait, so signal traps fire promptly while it runs
+        "${BASH_SOURCE[0]}" "$NEXT_TASK" "${CHILD_OPTS[@]}" &
+        CHILD_PID=$!
+        CURRENT_CLAUDE_PID=$CHILD_PID
+
+        STOP_FORWARDED=false
+        while kill -0 "$CHILD_PID" 2>/dev/null; do
+            wait "$CHILD_PID" 2>/dev/null || true
+            if [[ "$STOP_REQUESTED" == "true" && "$STOP_FORWARDED" == "false" ]] && kill -0 "$CHILD_PID" 2>/dev/null; then
+                echo ""
+                echo -e "${YELLOW}Stop requested - forwarding to the current task run (it finishes its current session first)...${NC}"
+                kill -USR1 "$CHILD_PID" 2>/dev/null || true
+                STOP_FORWARDED=true
+            fi
+        done
+        CURRENT_CLAUDE_PID=""
+
+        # Ground truth check: a finished entry has nothing runnable left.
+        # Runnable requirements remaining means the child was stopped or died -
+        # do not advance to the next entry on top of a half-done one.
+        RUNNABLE=$(jq '[.requirements[] | select(.passes != true and .stuck != true and .invalidTest != true)] | length' "$NEXT_TASK" 2>/dev/null || echo "0")
+        if [[ "$RUNNABLE" -gt 0 ]]; then
+            echo ""
+            echo -e "${YELLOW}Task run for $NEXT_TASK ended with $RUNNABLE requirement(s) still runnable (stopped or errored) - not advancing the queue${NC}"
+            break
+        fi
+
+        "$QUEUE_BIN" stamp finish "$NEXT_TASK" || true
+        STUCK_LEFT=$(jq '[.requirements[] | select(.stuck == true)] | length' "$NEXT_TASK" 2>/dev/null || echo "0")
+        if [[ "$STUCK_LEFT" -gt 0 ]]; then
+            echo -e "${YELLOW}Entry finished with $STUCK_LEFT stuck requirement(s) - marked for attention, moving on${NC}"
+        else
+            echo -e "${GREEN}Entry complete: $NEXT_TASK${NC}"
+        fi
+
+        if check_stop; then
+            break
+        fi
+
+        # Return to the starting branch so the next feature branches off the
+        # same base. A dirty tree means the entry left uncommitted work behind -
+        # stop rather than start the next feature on top of it. Autopilot's own
+        # bookkeeping churn (queue stamps, task-file flags, notes, analytics,
+        # lock files) is expected between entries and must not count as dirty.
+        if [[ -n "$START_BRANCH" ]]; then
+            DIRTY_EXCLUDES=(":(exclude)$QUEUE_FILE" ":(exclude).autopilot")
+            ENTRY_DIR=$(dirname "$NEXT_TASK")
+            if [[ "$ENTRY_DIR" != "." ]]; then
+                DIRTY_EXCLUDES+=(":(exclude)$ENTRY_DIR")
+            fi
+            if [[ -n "$(git status --porcelain -- . "${DIRTY_EXCLUDES[@]}" 2>/dev/null)" ]]; then
+                echo -e "${YELLOW}Working tree is dirty after $NEXT_TASK - stopping so the next entry doesn't build on uncommitted changes${NC}"
+                break
+            fi
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+            if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "$START_BRANCH" ]]; then
+                if git checkout "$START_BRANCH" 2>/dev/null; then
+                    echo -e "${BLUE}Returned to branch $START_BRANCH${NC}"
+                else
+                    echo -e "${YELLOW}Could not return to branch $START_BRANCH - stopping so the next entry doesn't stack on $CURRENT_BRANCH${NC}"
+                    break
+                fi
+            fi
+        fi
+
+        echo -e "${BLUE}Waiting ${DELAY}s before next queue entry...${NC}"
+        sleep "$DELAY"
+    done
+
+    echo ""
+    echo -e "${GREEN}run.sh finished (queue mode)${NC}"
+    "$QUEUE_BIN" list
+    exit 0
+fi
 
 # Model default from autopilot.json when --model wasn't passed. Spawned sessions
 # otherwise inherit the user's personal default model, which is often a pricier

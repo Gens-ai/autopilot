@@ -18,6 +18,8 @@
 
 set +e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -166,6 +168,17 @@ report_loop_state() {
     [[ -n "$analytics_file" && -f "$analytics_file" ]] && report_analytics "$analytics_file"
 }
 
+# Show the task queue with derived per-entry status (delegates to
+# autopilot-queue, which owns the derivation logic)
+report_queue() {
+    local queue_bin="$SCRIPT_DIR/autopilot-queue"
+    [[ -x "$queue_bin" ]] || queue_bin="$(command -v autopilot-queue 2>/dev/null)"
+    if [[ -n "$queue_bin" && -x "$queue_bin" ]]; then
+        echo ""
+        "$queue_bin" list | sed 's/^/  /'
+    fi
+}
+
 report_lock() {
     local lock_file="$1"
     local pid lock_dir is_alive=false
@@ -186,6 +199,13 @@ report_lock() {
     else
         echo -e "${RED}○ Stale lock${NC}  PID ${pid:-?} is not running  ($lock_file)"
         echo -e "  ${YELLOW}Not removed (read-only) - '/autopilot stop' or 'rm $lock_file' to clean up${NC}"
+    fi
+
+    # Queue wrapper: no loop-state of its own - it spawns a task-mode child
+    # per entry (that child's run.pid is reported separately). Show the queue.
+    if [[ "$(basename "$lock_file")" == "queue.pid" ]]; then
+        echo -e "  Queue drain wrapper - runs each queued task file via its own task-mode child"
+        return
     fi
 
     local state_file="$lock_dir/loop-state.md"
@@ -231,16 +251,19 @@ if [[ -n "$TASKFILE_ARG" ]]; then
 else
     while IFS= read -r f; do
         LOCK_FILES+=("$f")
-    done < <(find . -maxdepth 5 \( -name run.pid -o -name command.pid \) -not -path "*/node_modules/*" 2>/dev/null)
+    done < <(find . -maxdepth 5 \( -name run.pid -o -name command.pid -o -name queue.pid \) -not -path "*/node_modules/*" 2>/dev/null)
 fi
 
+QUEUE_JSON="${AUTOPILOT_QUEUE_FILE:-docs/autopilot/queue.json}"
+
 if [[ ${#LOCK_FILES[@]} -eq 0 ]]; then
-    echo -e "${YELLOW}No autopilot wrapper found (no run.pid/command.pid in this repo).${NC}"
+    echo -e "${YELLOW}No autopilot wrapper found (no run.pid/command.pid/queue.pid in this repo).${NC}"
     if [[ -f ".autopilot/loop-state.md" ]]; then
         echo ""
         echo -e "${BLUE}Found .autopilot/loop-state.md (in-session loop, no run.sh wrapper):${NC}"
         report_loop_state ".autopilot/loop-state.md"
     fi
+    [[ -f "$QUEUE_JSON" ]] && report_queue
     echo ""
     echo -e "${BLUE}────────────────────────────────────────${NC}"
     exit 0
@@ -249,6 +272,8 @@ fi
 for lock_file in "${LOCK_FILES[@]}"; do
     report_lock "$lock_file"
 done
+
+[[ -f "$QUEUE_JSON" ]] && report_queue
 
 echo ""
 echo -e "${BLUE}────────────────────────────────────────${NC}"

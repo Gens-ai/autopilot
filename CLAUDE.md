@@ -31,12 +31,15 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 **Supporting Files**:
 - `autopilot.schema.json` - Validates `autopilot.json` structure
 - `autopilot.template.json` - Starting point with null values for init to populate
+- `queue.schema.json` - Validates `docs/autopilot/queue.json` (per-project task queue)
 - `AGENTS.md` - TDD guidelines, symlinked to `~/.claude/` for cross-project access
 - `run.sh` - Token-frugal bash wrapper for fresh sessions per requirement
+- `autopilot-queue` - Queue management subcommand (`autopilot queue add/rm/hold/list/next`)
 - `cleanup.sh` - Kills orphaned Claude Code processes (MCP servers, subagents, workers)
 
 **Generated in User Projects**:
 - `autopilot.json` - Feedback loops, iterations, project conventions
+- `docs/autopilot/queue.json` - Ordered task queue; bare `autopilot` drains it entry by entry
 - `docs/autopilot/<feature-name>/` - All files for a given run live in one directory:
   - `<feature-name>.md` - Human-readable PRD
   - `<feature-name>.json` - Machine-readable task file with TDD tracking
@@ -60,6 +63,8 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 **Analytics**: Per-session analytics files track iterations, errors, and waste patterns. Stored in `docs/autopilot/<feature-name>/analytics/`. Use `/autopilot analyze` to generate improvement suggestions.
 
 **Thrashing Detection**: If the same error appears N times consecutively (default: 3), the task is immediately marked stuck. This prevents wasting tokens on unsolvable problems.
+
+**Task Queue**: Each project can keep an ordered queue of task files in `docs/autopilot/queue.json`. Running `autopilot` with no arguments drains it: run the first runnable entry to completion, return to the starting branch, move to the next. Entry status (queued/in-progress/done/stuck) is always **derived** from the task file's own requirement state — never stored in the queue — so it cannot drift. `/tasks` auto-enqueues generated task files; `autopilot queue add/rm/hold/unhold/move/list` manages the queue by hand. `autopilot-queue` owns all queue read/write logic; `run.sh` shells out to it.
 
 ## Analytics System
 
@@ -119,6 +124,7 @@ Notes files maintain state between sessions:
 | stop | `/autopilot stop` | Signal run.sh wrapper to exit gracefully |
 | cancel | `/autopilot cancel` | Remove loop state file to cancel hook-based loop |
 | tasks | `/autopilot file.json` | TDD task completion from JSON file |
+| queue | `autopilot` (terminal, no args) | Drain the project task queue, entry by entry |
 | tests | `/autopilot tests [%]` | Increase test coverage to target |
 | lint | `/autopilot lint` | Fix lint errors one by one |
 | entropy | `/autopilot entropy` | Clean up code smells and dead code |
@@ -152,7 +158,7 @@ This repo has no build system or tests - it's pure markdown documentation. Chang
 
 **Installation**: `./install.sh` creates symlinks to `~/.claude/commands/`, `~/.claude/hooks/`, and `~/.claude/AGENTS.md`
 
-**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup`
+**Uninstall**: `rm ~/.claude/commands/{prd,tasks,autopilot,init,analyze}.md ~/.claude/AGENTS.md ~/.claude/hooks/autopilot-stop-hook.sh ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup ~/.local/bin/autopilot-queue`
 
 ## Process Management
 
@@ -191,6 +197,7 @@ The `examples/` directory contains reference files:
 - `brainstorm.md` - Initial feature brainstorm before PRD
 - `prd-user-auth.md` - Example PRD document
 - `tasks-user-auth.json` - Example task file with TDD tracking
+- `queue.json` - Example project task queue (done, pending, and on-hold entries)
 - `notes-user-auth.md` - Example progress notes file
 - `analytics-user-auth-session.json` - Example session analytics with thrashing detection
 

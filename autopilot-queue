@@ -1,0 +1,387 @@
+#!/bin/bash
+#
+# autopilot-queue - Subcommand: manage the project task queue
+#
+# The queue is a committed, ordered list of task JSON files for autopilot to
+# work through (docs/autopilot/queue.json). Entry status is DERIVED from each
+# task file's own requirement state (passes/stuck/invalidTest) at read time -
+# the queue never duplicates it, so it cannot drift from ground truth.
+#
+# Usage:
+#   autopilot queue [list]                     # Show the queue with derived status
+#   autopilot queue add <taskfile.json> [--front] [--notes "text"]
+#   autopilot queue rm <taskfile.json|N>       # Remove entry (N = position from list)
+#   autopilot queue hold <taskfile.json|N>     # Keep entry but skip it when draining
+#   autopilot queue unhold <taskfile.json|N>
+#   autopilot queue move <taskfile.json|N> <position>
+#   autopilot queue next                       # Print next runnable task file path
+#   autopilot queue stamp start|finish <taskfile.json>   # Internal (used by run.sh)
+#
+# Statuses (derived, never stored):
+#   queued       no requirement worked yet
+#   in-progress  some requirements passed/stuck, runnable ones remain
+#   done         every requirement passed (or invalid-test)
+#   stuck        nothing runnable remains but some requirements are stuck
+#   on-hold      hold flag set - skipped by the drain loop
+#   missing      task file not found on disk
+#   invalid      task file is not valid JSON with a requirements array
+#
+# Queue file: docs/autopilot/queue.json (override with AUTOPILOT_QUEUE_FILE)
+
+set -e
+
+QUEUE_FILE="${AUTOPILOT_QUEUE_FILE:-docs/autopilot/queue.json}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+if ! command -v jq &>/dev/null; then
+    echo -e "${RED}Error: jq is required but not installed${NC}" >&2
+    exit 1
+fi
+
+# --- Helpers ---
+
+ensure_queue() {
+    if [[ -f "$QUEUE_FILE" ]]; then
+        return 0
+    fi
+    mkdir -p "$(dirname "$QUEUE_FILE")"
+    cat > "$QUEUE_FILE" << 'SKELETON'
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/queue.schema.json",
+  "version": "1.0.0",
+  "queue": []
+}
+SKELETON
+    echo -e "${GREEN}Created queue file: $QUEUE_FILE${NC}" >&2
+}
+
+# Atomically rewrite the queue file with a jq program ($1) and optional jq args
+write_queue() {
+    local program="$1"
+    shift
+    local tmp
+    tmp=$(mktemp)
+    if jq "$@" "$program" "$QUEUE_FILE" > "$tmp"; then
+        mv "$tmp" "$QUEUE_FILE"
+    else
+        rm -f "$tmp"
+        echo -e "${RED}Error: failed to update $QUEUE_FILE${NC}" >&2
+        exit 1
+    fi
+}
+
+# Derive an entry's status from its task file. Args: <taskfile> <hold>
+entry_status() {
+    local file="$1" hold="$2"
+    if [[ "$hold" == "true" ]]; then
+        echo "on-hold"
+        return 0
+    fi
+    if [[ ! -f "$file" ]]; then
+        echo "missing"
+        return 0
+    fi
+    local counts
+    if ! counts=$(jq -r '[
+        ([.requirements[] | select(.passes == true)] | length),
+        ([.requirements[] | select(.stuck == true)] | length),
+        ([.requirements[] | select(.invalidTest == true)] | length),
+        ([.requirements[] | select(.passes != true and .stuck != true and .invalidTest != true)] | length)
+    ] | @tsv' "$file" 2>/dev/null); then
+        echo "invalid"
+        return 0
+    fi
+    local passed stuck invalid runnable
+    IFS=$'\t' read -r passed stuck invalid runnable <<< "$counts"
+    if [[ "$runnable" -gt 0 ]]; then
+        if [[ $((passed + stuck + invalid)) -gt 0 ]]; then
+            echo "in-progress"
+        else
+            echo "queued"
+        fi
+    else
+        if [[ "$stuck" -gt 0 ]]; then
+            echo "stuck"
+        else
+            echo "done"
+        fi
+    fi
+}
+
+status_color() {
+    case "$1" in
+        done)              echo -n "$GREEN" ;;
+        in-progress)       echo -n "$BLUE" ;;
+        stuck)             echo -n "$YELLOW" ;;
+        on-hold)           echo -n "$YELLOW" ;;
+        missing|invalid)   echo -n "$RED" ;;
+        *)                 echo -n "$NC" ;;
+    esac
+}
+
+# Resolve "<taskfile>|N" to a 0-based queue index; prints index or exits 1
+resolve_index() {
+    local arg="$1" len idx
+    len=$(jq '.queue | length' "$QUEUE_FILE")
+    if [[ "$arg" =~ ^[0-9]+$ ]]; then
+        idx=$((arg - 1))
+        if [[ $idx -lt 0 || $idx -ge $len ]]; then
+            echo -e "${RED}Error: position $arg is out of range (queue has $len entries)${NC}" >&2
+            exit 1
+        fi
+    else
+        idx=$(jq --arg f "$arg" '[.queue[].taskFile] | index($f) // -1' "$QUEUE_FILE")
+        if [[ "$idx" -lt 0 ]]; then
+            echo -e "${RED}Error: not in queue: $arg${NC}" >&2
+            echo "Run 'autopilot queue list' to see entries." >&2
+            exit 1
+        fi
+    fi
+    echo "$idx"
+}
+
+require_queue() {
+    if [[ ! -f "$QUEUE_FILE" ]]; then
+        echo -e "${YELLOW}No queue file at $QUEUE_FILE${NC}" >&2
+        echo "Add a task file with: autopilot queue add <taskfile.json>" >&2
+        exit 1
+    fi
+}
+
+# --- Commands ---
+
+cmd_list() {
+    if [[ ! -f "$QUEUE_FILE" ]]; then
+        echo -e "${YELLOW}No queue yet ($QUEUE_FILE)${NC}"
+        echo "Add a task file with: autopilot queue add <taskfile.json>"
+        return 0
+    fi
+    local len
+    len=$(jq '.queue | length' "$QUEUE_FILE")
+    if [[ "$len" -eq 0 ]]; then
+        echo -e "${YELLOW}Queue is empty ($QUEUE_FILE)${NC}"
+        echo "Add a task file with: autopilot queue add <taskfile.json>"
+        return 0
+    fi
+
+    echo -e "${BOLD}Task Queue${NC} ($QUEUE_FILE)"
+    local i tf hold notes status color progress padded
+    for ((i = 0; i < len; i++)); do
+        tf=$(jq -r ".queue[$i].taskFile" "$QUEUE_FILE")
+        hold=$(jq -r ".queue[$i].hold // false" "$QUEUE_FILE")
+        notes=$(jq -r ".queue[$i].notes // \"\"" "$QUEUE_FILE")
+        status=$(entry_status "$tf" "$hold")
+        color=$(status_color "$status")
+        if [[ -f "$tf" ]]; then
+            progress=$(jq -r '"\([.requirements[] | select(.passes == true)] | length)/\(.requirements | length)"' "$tf" 2>/dev/null || echo "?")
+        else
+            progress="-"
+        fi
+        padded=$(printf '%-11s' "$status")
+        printf "  %2d  ${color}%s${NC}  %7s  %s" "$((i + 1))" "$padded" "$progress" "$tf"
+        [[ -n "$notes" ]] && printf "  ${YELLOW}(%s)${NC}" "$notes"
+        printf "\n"
+    done
+
+    # || true must sit OUTSIDE the substitution: cmd_next's `exit 2` kills the
+    # whole subshell, so a guard inside it never runs
+    local next_tf
+    next_tf=$(cmd_next 2>/dev/null) || true
+    if [[ -n "$next_tf" ]]; then
+        echo -e "  ${BLUE}Next up:${NC} $next_tf  (run 'autopilot' to start)"
+    else
+        echo -e "  ${GREEN}Nothing runnable${NC} (all done, stuck, on hold, or missing)"
+    fi
+}
+
+cmd_add() {
+    local file="" front=false notes=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --front) front=true; shift ;;
+            --notes) notes="$2"; shift 2 ;;
+            -*)
+                echo -e "${RED}Unknown option: $1${NC}" >&2
+                exit 1
+                ;;
+            *)
+                if [[ -z "$file" ]]; then
+                    file="$1"
+                else
+                    echo -e "${RED}Unexpected argument: $1${NC}" >&2
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$file" ]]; then
+        echo -e "${RED}Error: no task file specified${NC}" >&2
+        echo "Usage: autopilot queue add <taskfile.json> [--front] [--notes \"text\"]" >&2
+        exit 1
+    fi
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}Error: task file not found: $file${NC}" >&2
+        exit 1
+    fi
+    if ! jq -e '.requirements' "$file" >/dev/null 2>&1; then
+        echo -e "${RED}Error: not a valid task file (missing 'requirements' array): $file${NC}" >&2
+        echo "Run '/tasks <prd-file.md>' to generate a valid task file." >&2
+        exit 1
+    fi
+
+    ensure_queue
+
+    local existing
+    existing=$(jq --arg f "$file" '[.queue[].taskFile] | index($f) // -1' "$QUEUE_FILE")
+    if [[ "$existing" -ge 0 ]]; then
+        echo -e "${YELLOW}Already queued at position $((existing + 1)): $file${NC}"
+        return 0
+    fi
+
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local insert='.queue += [$entry]'
+    [[ "$front" == "true" ]] && insert='.queue = [$entry] + .queue'
+    write_queue "$insert" \
+        --argjson entry "$(jq -n --arg tf "$file" --arg at "$now" --arg notes "$notes" \
+            '{taskFile: $tf, addedAt: $at, hold: false, notes: $notes, startedAt: null, completedAt: null}')"
+
+    local pos status
+    pos=$(jq --arg f "$file" '[.queue[].taskFile] | index($f) + 1' "$QUEUE_FILE")
+    status=$(entry_status "$file" "false")
+    echo -e "${GREEN}Queued at position $pos${NC} ($status): $file"
+}
+
+cmd_rm() {
+    require_queue
+    local idx tf
+    idx=$(resolve_index "$1")
+    tf=$(jq -r ".queue[$idx].taskFile" "$QUEUE_FILE")
+    write_queue "del(.queue[$idx])"
+    echo -e "${GREEN}Removed from queue:${NC} $tf"
+}
+
+cmd_hold() {
+    require_queue
+    local idx tf
+    idx=$(resolve_index "$1")
+    tf=$(jq -r ".queue[$idx].taskFile" "$QUEUE_FILE")
+    write_queue ".queue[$idx].hold = true"
+    echo -e "${YELLOW}On hold:${NC} $tf (drain loop will skip it; 'autopilot queue unhold' to release)"
+}
+
+cmd_unhold() {
+    require_queue
+    local idx tf
+    idx=$(resolve_index "$1")
+    tf=$(jq -r ".queue[$idx].taskFile" "$QUEUE_FILE")
+    write_queue ".queue[$idx].hold = false"
+    echo -e "${GREEN}Released:${NC} $tf"
+}
+
+cmd_move() {
+    require_queue
+    local idx dest len tf
+    idx=$(resolve_index "$1")
+    if [[ ! "$2" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}Error: destination must be a position number${NC}" >&2
+        echo "Usage: autopilot queue move <taskfile.json|N> <position>" >&2
+        exit 1
+    fi
+    len=$(jq '.queue | length' "$QUEUE_FILE")
+    dest=$(($2 - 1))
+    [[ $dest -lt 0 ]] && dest=0
+    [[ $dest -ge $len ]] && dest=$((len - 1))
+    tf=$(jq -r ".queue[$idx].taskFile" "$QUEUE_FILE")
+    write_queue ".queue[$idx] as \$e | del(.queue[$idx]) | .queue = .queue[:$dest] + [\$e] + .queue[$dest:]"
+    echo -e "${GREEN}Moved to position $((dest + 1)):${NC} $tf"
+}
+
+cmd_next() {
+    if [[ ! -f "$QUEUE_FILE" ]]; then
+        echo "No queue file at $QUEUE_FILE" >&2
+        exit 1
+    fi
+    local len i tf hold status
+    len=$(jq '.queue | length' "$QUEUE_FILE")
+    for ((i = 0; i < len; i++)); do
+        tf=$(jq -r ".queue[$i].taskFile" "$QUEUE_FILE")
+        hold=$(jq -r ".queue[$i].hold // false" "$QUEUE_FILE")
+        status=$(entry_status "$tf" "$hold")
+        case "$status" in
+            queued|in-progress)
+                echo "$tf"
+                return 0
+                ;;
+            missing)
+                echo -e "${YELLOW}Skipping missing task file: $tf${NC}" >&2
+                ;;
+            invalid)
+                echo -e "${YELLOW}Skipping invalid task file: $tf${NC}" >&2
+                ;;
+        esac
+    done
+    echo "Queue has no runnable entries" >&2
+    exit 2
+}
+
+# Internal: run.sh stamps startedAt when picking an entry up and completedAt
+# when it finishes draining. Timestamps are informational only - status is
+# always derived from the task file.
+cmd_stamp() {
+    require_queue
+    local action="$1" file="$2" idx now
+    if [[ -z "$action" || -z "$file" ]]; then
+        echo -e "${RED}Usage: autopilot queue stamp start|finish <taskfile.json>${NC}" >&2
+        exit 1
+    fi
+    idx=$(resolve_index "$file")
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    case "$action" in
+        start)
+            write_queue ".queue[$idx].startedAt //= \$now" --arg now "$now"
+            ;;
+        finish)
+            write_queue ".queue[$idx].completedAt = \$now" --arg now "$now"
+            ;;
+        *)
+            echo -e "${RED}Unknown stamp action: $action${NC} (expected start or finish)" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# --- Dispatch ---
+
+CMD="${1:-list}"
+[[ $# -gt 0 ]] && shift
+
+case "$CMD" in
+    list)          cmd_list ;;
+    add)           cmd_add "$@" ;;
+    rm|remove)     cmd_rm "$@" ;;
+    hold)          cmd_hold "$@" ;;
+    unhold)        cmd_unhold "$@" ;;
+    move)          cmd_move "$@" ;;
+    next)          cmd_next ;;
+    stamp)         cmd_stamp "$@" ;;
+    --help|-h|help)
+        # Print the header comment block (everything up to the first non-comment line)
+        awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print } NR > 1 && !/^#/ { exit }' "$0"
+        ;;
+    *)
+        echo -e "${RED}Unknown queue command: $CMD${NC}" >&2
+        echo "Commands: list, add, rm, hold, unhold, move, next" >&2
+        echo "Run 'autopilot queue --help' for details." >&2
+        exit 1
+        ;;
+esac

@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/queue.schema.json",
+  "title": "Autopilot Task Queue",
+  "description": "Ordered, committed list of task files for autopilot to work through. Entry status (queued/in-progress/done/stuck) is derived from each task file's own requirement state at read time and is never stored here, so the queue cannot drift from ground truth.",
+  "type": "object",
+  "required": ["queue"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "description": "Queue file format version"
+    },
+    "queue": {
+      "type": "array",
+      "description": "Entries in run order: the drain loop works the first runnable entry first",
+      "items": {
+        "type": "object",
+        "required": ["taskFile"],
+        "properties": {
+          "taskFile": {
+            "type": "string",
+            "description": "Project-relative path to a task JSON file with a requirements array"
+          },
+          "addedAt": {
+            "type": ["string", "null"],
+            "description": "ISO8601 timestamp when the entry was queued"
+          },
+          "hold": {
+            "type": "boolean",
+            "default": false,
+            "description": "Keep the entry in the queue but skip it when draining"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Free-form note shown in queue listings"
+          },
+          "startedAt": {
+            "type": ["string", "null"],
+            "description": "Stamped by run.sh the first time the entry is picked up (informational; status is always derived from the task file)"
+          },
+          "completedAt": {
+            "type": ["string", "null"],
+            "description": "Stamped by run.sh when the entry finishes draining (all requirements passed, stuck, or invalid)"
+          }
+        }
+      }
+    }
+  }
+}

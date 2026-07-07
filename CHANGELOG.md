@@ -2,6 +2,19 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-07-07
+
+### Added
+- **Per-project task queue (`docs/autopilot/queue.json`)** - Each project can now keep an ordered, committed queue of task files, so `autopilot` run with **no arguments** picks up the next runnable task list and drains the queue entry by entry. The queue stores only ordering and intent (position, `hold`, `notes`, informational timestamps); entry status (`queued`/`in-progress`/`done`/`stuck`) is always **derived** from the task file's own `passes`/`stuck`/`invalidTest` state at read time — never duplicated — so it cannot drift from ground truth (the class of bug fixed on 2026-07-05). Schema in `queue.schema.json`, example in `examples/queue.json`.
+- **`autopilot queue` subcommand (`autopilot-queue`)** - Single owner of all queue read/write logic (`run.sh` and `status.sh` shell out to it): `list` (derived status + progress per entry, next-up pointer), `add` (validates the task file, idempotent, `--front`, `--notes`), `rm`, `hold`/`unhold` (park an entry without losing its place), `move`, `next` (machine-readable: prints the first runnable entry's path), and an internal `stamp` used by run.sh for start/finish timestamps. Symlinked to `~/.local/bin` by `install.sh` and dispatched via run.sh's existing subcommand mechanism.
+- **Queue mode in `run.sh`** - Bare `autopilot` (lock: `.autopilot/queue.pid`) spawns a full task-mode run.sh per entry — same locking, batching, monitoring, and analytics as running the file directly — and advances only when the entry has nothing runnable left. A fully-stuck entry is flagged and skipped, not retried forever; a child that exits with runnable requirements remaining (stopped or crashed) halts the drain instead of plowing ahead. Between entries the wrapper returns to the branch it started on so each feature branches off the same base rather than stacking on the previous feature's branch, and a dirty working tree halts the drain. `--batch`/`--delay`/`--model` are forwarded to each entry's run. SIGUSR1/Ctrl+C forward gracefully to the active child.
+- **`/tasks` auto-enqueues** - After saving a generated task JSON, `/tasks` now runs `autopilot queue add <file>` so new task files land in the queue automatically (skipped in `--refresh` mode and when the CLI isn't installed).
+
+### Changed
+- **`/autopilot stop` and `autopilot-status` know about queue drains** - Both now include `.autopilot/queue.pid` in their PID-file search; status prints the queue table (via `autopilot-queue list`) whenever a queue file exists, and stop documents the two-wrapper layout (queue parent + task-mode child) and that stopping either halts the drain gracefully.
+
+---
+
 ## 2026-07-05 (late evening)
 
 ### Changed

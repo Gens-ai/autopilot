@@ -250,6 +250,7 @@ Based on code analysis, infer dependencies between requirements:
 2. Highlight any requirements marked `already-done` (no implementation needed)
 3. Show inferred dependencies for confirmation
 4. After user confirms, save the JSON file
+5. **Add the task file to the project queue**: run `autopilot queue add <json-file>` via Bash. This registers it in `docs/autopilot/queue.json` so a bare `autopilot` run picks it up in order. The command is idempotent (it skips files already queued). If the `autopilot` CLI is not on PATH, skip this step and tell the user they can queue it later with `autopilot queue add <json-file>`. Do not do this in `--refresh` mode — the file is typically already queued.
 
 ---
 
@@ -304,4 +305,4 @@ When given an existing tasks JSON file with `--refresh`:
 
 ## Next Step
 
-After generating the JSON, use `/autopilot [json-file]` to run autonomous TDD execution.
+After generating the JSON, use `/autopilot [json-file]` to run autonomous TDD execution — or, since the file is now queued, run the bare `autopilot` command from the terminal to work the project queue in order.

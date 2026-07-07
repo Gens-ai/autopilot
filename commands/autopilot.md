@@ -242,7 +242,7 @@ For `stop` argument. Signals the run.sh loop to exit gracefully.
 Steps:
 1. Find running autopilot PID files. `run.pid` lives next to the task file, which is NOT always under `docs/autopilot/` (e.g. this could be `docs/tasks/prds/run.pid`), so search the whole repo:
    - If `AUTOPILOT_STATE_DIR` is set in env: check `$AUTOPILOT_STATE_DIR/run.pid`
-   - Also search: `find . -maxdepth 5 \( -name run.pid -o -name command.pid \) -not -path "*/node_modules/*" 2>/dev/null`
+   - Also search: `find . -maxdepth 5 \( -name run.pid -o -name command.pid -o -name queue.pid \) -not -path "*/node_modules/*" 2>/dev/null`
    - Collect all found PID files
 2. If no PID files found, tell the user:
    ```
@@ -253,6 +253,8 @@ Steps:
    - If process not running: remove the stale PID file, note it was stale
    - If process running: send SIGUSR1 (`kill -USR1 $PID`) and note it was stopped
 4. Tell the user which sessions were stopped (or that all were stale).
+
+Note on queue mode: a queue drain (`autopilot` with no arguments) runs two wrappers at once — the queue parent (`.autopilot/queue.pid`) and a task-mode child for the current entry (`run.pid` next to that task file). Signaling the queue parent forwards the stop to its child, so signaling both is safe and stops the whole drain gracefully. Stopping only the child also halts the drain: the parent sees the entry end with runnable requirements left and does not advance to the next entry.
 
 ## Mode: Cancel
 

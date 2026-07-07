@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Gens-ai/autopilot/main/queue.schema.json",
+  "version": "1.0.0",
+  "queue": [
+    {
+      "taskFile": "docs/autopilot/user-auth/user-auth.json",
+      "addedAt": "2026-07-01T14:22:00Z",
+      "hold": false,
+      "notes": "",
+      "startedAt": "2026-07-02T09:00:14Z",
+      "completedAt": "2026-07-02T11:41:52Z"
+    },
+    {
+      "taskFile": "docs/autopilot/password-reset/password-reset.json",
+      "addedAt": "2026-07-03T10:05:00Z",
+      "hold": false,
+      "notes": "",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "taskFile": "docs/autopilot/billing-webhooks/billing-webhooks.json",
+      "addedAt": "2026-07-03T10:06:00Z",
+      "hold": true,
+      "notes": "waiting on Stripe sandbox credentials",
+      "startedAt": null,
+      "completedAt": null
+    }
+  ]
+}

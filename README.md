@@ -179,6 +179,7 @@ autopilot tasks.json --delay 5    # 5 second pause between sessions
 autopilot tasks.json --dry-run    # Preview without executing
 autopilot tasks.json --cleanup    # Kill stale processes before starting
 autopilot /my-command --max 5     # Run slash command 5 times (command loop mode)
+autopilot                         # No args: work the project task queue (see Task Queue Mode)
 ```
 
 **Model options:** `opus` (default), `sonnet`, `haiku`, or full model names like `claude-sonnet-4-5-20250929`
@@ -375,7 +376,41 @@ Pass an optional number `N` to override the default iterations from `autopilot.j
 
 | Command | Description |
 |---------|-------------|
+| `autopilot` | Work the project task queue (`docs/autopilot/queue.json`), entry by entry |
+| `autopilot queue [list]` | Show the queue with derived per-entry status |
+| `autopilot queue add <file.json>` | Queue a task file (`--front` to prioritize, `--notes "..."`) |
+| `autopilot queue rm\|hold\|unhold\|move` | Remove, pause, release, or reorder entries |
 | `autopilot test-stories <domain.md>` | Audit existing features against a domain user story file |
+
+### Task Queue Mode
+
+Each project can keep an ordered queue of task files so you never have to remember what to run next — `autopilot` with no arguments picks up the first runnable entry and works the queue until it's drained:
+
+```bash
+# Queue up task files (also done automatically when /tasks generates one)
+autopilot queue add docs/autopilot/user-auth/user-auth.json
+autopilot queue add docs/autopilot/billing/billing.json --notes "after auth ships"
+
+# See where things stand
+autopilot queue
+#   1  done          7/7  docs/autopilot/user-auth/user-auth.json
+#   2  queued        0/5  docs/autopilot/billing/billing.json  (after auth ships)
+#   Next up: docs/autopilot/billing/billing.json  (run 'autopilot' to start)
+
+# Work the queue: runs each entry to completion in order, fresh sessions per requirement
+autopilot
+autopilot --batch 3 --model sonnet    # options forwarded to each entry's run
+```
+
+**How it works:**
+- The queue lives at `docs/autopilot/queue.json` — a small, committed JSON file holding only ordering and intent (`hold`, `notes`, timestamps). Entry **status is derived live** from each task file's own `passes`/`stuck`/`invalidTest` state, never duplicated, so the queue can't drift from ground truth.
+- The drain loop runs a full task-mode `run.sh` per entry (same locking, batching, and analytics as running the file directly), then advances when nothing runnable remains in it.
+- An entry that ends fully **stuck** is flagged for attention and skipped, not retried forever. An entry whose run was stopped or died mid-way halts the drain rather than plowing ahead.
+- Between entries the wrapper returns to the branch it started on, so each feature branches off the same base instead of stacking on the previous feature's branch. A dirty working tree also halts the drain.
+- `autopilot queue hold <file|N>` parks an entry (kept in place, skipped when draining); `unhold` releases it. `move <file|N> <pos>` reorders.
+- `/autopilot stop` (or Ctrl+C) stops the drain gracefully — the current requirement finishes, the queue keeps its state, and the next `autopilot` run resumes exactly where things left off.
+
+Statuses shown by `autopilot queue`: `queued` (untouched), `in-progress` (some requirements done, runnable ones remain), `done`, `stuck` (nothing runnable, some requirements blocked), `on-hold`, `missing`/`invalid` (task file gone or malformed — skipped with a warning).
 
 ### Command Loop Mode
 
@@ -643,12 +678,15 @@ autopilot/                    # This repo (source of truth)
 │   ├── notes-user-auth.md         # Example progress notes
 │   ├── analytics-user-auth-session.json  # Example session analytics
 │   ├── autopilot-monorepo.json    # Example monorepo configuration
-│   └── tasks-monorepo.json        # Example monorepo task file
+│   ├── tasks-monorepo.json        # Example monorepo task file
+│   └── queue.json                 # Example project task queue
 ├── autopilot.template.json  # Template for autopilot.json
 ├── autopilot.schema.json    # JSON schema for autopilot.json
 ├── analytics.schema.json    # JSON schema for session analytics
 ├── tasks.schema.json        # JSON schema for task files
+├── queue.schema.json        # JSON schema for the task queue
 ├── run.sh                   # Token-frugal wrapper script
+├── autopilot-queue          # Queue management subcommand
 ├── cleanup.sh               # Kill orphaned Claude Code processes
 ├── AGENTS.md                # Global agent guidelines (TDD, quality)
 ├── install.sh               # Creates symlinks to ~/.claude/
@@ -669,6 +707,7 @@ autopilot/                    # This repo (source of truth)
 your-project/                # Generated during workflow
 ├── autopilot.json           # Project configuration (created by /autopilot init)
 └── docs/autopilot/
+    ├── queue.json           # Ordered task queue (bare `autopilot` drains it)
     └── feature-name/        # One directory per feature/run
         ├── feature-name.md       # Human-readable PRD
         ├── feature-name.json     # Machine-readable tasks
@@ -1015,7 +1054,7 @@ Remove the symlinks:
 
 ```bash
 rm ~/.claude/commands/{prd,tasks,autopilot,autopilot:init,analyze}.md ~/.claude/AGENTS.md
-rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup ~/.local/bin/autopilot-status
+rm ~/.local/bin/autopilot ~/.local/bin/autopilot-cleanup ~/.local/bin/autopilot-status ~/.local/bin/autopilot-queue ~/.local/bin/autopilot-test-stories
 rm ~/.claude/hooks/autopilot-stop-hook.sh
 ```
 

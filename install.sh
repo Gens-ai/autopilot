@@ -131,6 +131,16 @@ fi
 ln -s "$SCRIPT_DIR/status.sh" ~/.local/bin/autopilot-status
 echo "  Linked: status.sh → ~/.local/bin/autopilot-status"
 
+# Symlink autopilot-queue
+if [ -L ~/.local/bin/autopilot-queue ]; then
+    rm ~/.local/bin/autopilot-queue
+elif [ -f ~/.local/bin/autopilot-queue ]; then
+    echo "Backing up existing ~/.local/bin/autopilot-queue to autopilot-queue.bak"
+    mv ~/.local/bin/autopilot-queue ~/.local/bin/autopilot-queue.bak
+fi
+ln -s "$SCRIPT_DIR/autopilot-queue" ~/.local/bin/autopilot-queue
+echo "  Linked: autopilot-queue → ~/.local/bin/autopilot-queue"
+
 # Symlink autopilot-test-stories
 if [ -L ~/.local/bin/autopilot-test-stories ]; then
     rm ~/.local/bin/autopilot-test-stories
@@ -155,7 +165,8 @@ echo "  /autopilot status  - Read-only health check on any active loop (inside C
 echo "  /autopilot analyze - Analyze session analytics (inside Claude)"
 echo "  /test-user-stories - Parse domain file and generate testing task JSON (inside Claude)"
 echo ""
-echo "  autopilot                              - Token-frugal wrapper (from terminal)"
+echo "  autopilot                              - Token-frugal wrapper; no args = work the task queue"
+echo "  autopilot queue [add|rm|hold|list]     - Manage the project task queue (from terminal)"
 echo "  autopilot test-stories <domain.md>     - Audit user stories against existing features"
 echo "  autopilot-cleanup                      - Kill orphaned Claude processes (from terminal)"
 echo "  autopilot-status [taskfile]            - Read-only health check, no Claude session needed (from terminal)"
@@ -163,6 +174,8 @@ echo ""
 echo "Usage:"
 echo "  autopilot docs/autopilot/feature/feature.json    # Fresh context per requirement"
 echo "  autopilot tasks.json --batch 3                   # 3 requirements per session"
+echo "  autopilot queue add docs/autopilot/feature/feature.json   # Queue a task file"
+echo "  autopilot                                        # Drain the queue, entry by entry"
 echo "  autopilot test-stories docs/testing/domains/01-feature-area.md"
 echo ""
 echo "Run '/autopilot init' in your project to set up configuration."
