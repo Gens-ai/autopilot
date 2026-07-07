@@ -1,8 +1,9 @@
 ---
 id: ISSUE-001
 title: queue list command exits nonzero, breaks under set -e
-status: open
+status: resolved
 created: 2026-07-07
+resolved: 2026-07-07
 ---
 
 ## Summary
@@ -20,4 +21,8 @@ created: 2026-07-07
 
 ## Findings
 
-- **2026-07-07:** Root cause confirmed via `bash -x` trace: `cmd_next`'s `exit 2` unwinds the whole `$(...)` subshell before the inner `|| true` can run. Fix is to move the guard outside the substitution: `next_tf=$(cmd_next 2>/dev/null) || true`. Fix applied in the working tree, not yet committed.
+- **2026-07-07:** Root cause confirmed via `bash -x` trace: `cmd_next`'s `exit 2` unwinds the whole `$(...)` subshell before the inner `|| true` can run. Fix is to move the guard outside the substitution: `next_tf=$(cmd_next 2>/dev/null) || true`.
+
+## Resolution
+
+- **2026-07-07:** Fixed in `autopilot-queue` — commit `d951ab4`.

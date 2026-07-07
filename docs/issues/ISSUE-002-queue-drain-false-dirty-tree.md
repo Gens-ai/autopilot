@@ -1,8 +1,9 @@
 ---
 id: ISSUE-002
 title: queue drain falsely detects a dirty working tree between every entry
-status: open
+status: resolved
 created: 2026-07-07
+resolved: 2026-07-07
 ---
 
 ## Summary
@@ -20,4 +21,8 @@ The queue drain loop in `run.sh` would have halted after the very first entry on
 
 ## Findings
 
-- **2026-07-07:** Fix applied in the working tree (not yet committed): scope the git status check to exclude the queue file, the `.autopilot/` directory, and the entry's own task-file directory: `git status --porcelain -- . ":(exclude)$QUEUE_FILE" ":(exclude).autopilot" ":(exclude)$ENTRY_DIR"`. Re-ran the same three-entry drain test afterward and it completed all three entries without a false dirty-tree stop.
+- **2026-07-07:** Fix: scope the git status check to exclude the queue file, the `.autopilot/` directory, and the entry's own task-file directory: `git status --porcelain -- . ":(exclude)$QUEUE_FILE" ":(exclude).autopilot" ":(exclude)$ENTRY_DIR"`. Re-ran the same three-entry drain test afterward and it completed all three entries without a false dirty-tree stop.
+
+## Resolution
+
+- **2026-07-07:** Fixed in `run.sh` — commit `d951ab4`.
