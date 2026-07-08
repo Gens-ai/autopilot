@@ -384,6 +384,8 @@ Pass an optional number `N` to override the default iterations from `autopilot.j
 
 ### Task Queue Mode
 
+> **Deep dive:** [docs/queue-mode.md](docs/queue-mode.md) documents the full machinery — the derived-status model, the `autopilot-queue` command reference, the drain loop step-by-step, and every failure mode found (and fixed) while dogfooding it.
+
 Each project can keep an ordered queue of task files so you never have to remember what to run next — `autopilot` with no arguments picks up the first runnable entry and works the queue until it's drained:
 
 ```bash
@@ -406,7 +408,7 @@ autopilot --batch 3 --model sonnet    # options forwarded to each entry's run
 - The queue lives at `docs/autopilot/queue.json` — a small, committed JSON file holding only ordering and intent (`hold`, `notes`, timestamps). Entry **status is derived live** from each task file's own `passes`/`stuck`/`invalidTest` state, never duplicated, so the queue can't drift from ground truth.
 - The drain loop runs a full task-mode `run.sh` per entry (same locking, batching, and analytics as running the file directly), then advances when nothing runnable remains in it.
 - An entry that ends fully **stuck** is flagged for attention and skipped, not retried forever. An entry whose run was stopped or died mid-way halts the drain rather than plowing ahead.
-- Between entries the wrapper returns to the branch it started on, so each feature branches off the same base instead of stacking on the previous feature's branch. A dirty working tree also halts the drain.
+- Between entries the wrapper returns to the branch it started on, so each feature branches off the same base instead of stacking on the previous feature's branch. Only *new* uncommitted changes introduced by the entry that just ran halt the drain — pre-existing repo cruft and autopilot's own bookkeeping are ignored, so ordinary untracked files don't block an unattended overnight run.
 - `autopilot queue hold <file|N>` parks an entry (kept in place, skipped when draining); `unhold` releases it. `move <file|N> <pos>` reorders.
 - `/autopilot stop` (or Ctrl+C) stops the drain gracefully — the current requirement finishes, the queue keeps its state, and the next `autopilot` run resumes exactly where things left off.
 

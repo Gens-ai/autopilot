@@ -64,7 +64,7 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 
 **Thrashing Detection**: If the same error appears N times consecutively (default: 3), the task is immediately marked stuck. This prevents wasting tokens on unsolvable problems.
 
-**Task Queue**: Each project can keep an ordered queue of task files in `docs/autopilot/queue.json`. Running `autopilot` with no arguments drains it: run the first runnable entry to completion, return to the starting branch, move to the next. Entry status (queued/in-progress/done/stuck) is always **derived** from the task file's own requirement state — never stored in the queue — so it cannot drift. `/tasks` auto-enqueues generated task files; `autopilot queue add/rm/hold/unhold/move/list` manages the queue by hand. `autopilot-queue` owns all queue read/write logic; `run.sh` shells out to it.
+**Task Queue**: Each project can keep an ordered queue of task files in `docs/autopilot/queue.json`. Running `autopilot` with no arguments drains it: run the first runnable entry to completion, return to the starting branch, move to the next. Entry status (queued/in-progress/done/stuck) is always **derived** from the task file's own requirement state — never stored in the queue — so it cannot drift. `/tasks` auto-enqueues generated task files; `autopilot queue add/rm/hold/unhold/move/list` manages the queue by hand. `autopilot-queue` owns all queue read/write logic; `run.sh` shells out to it. See `docs/queue-mode.md` for the full drain-loop mechanics and failure modes.
 
 ## Analytics System
 
