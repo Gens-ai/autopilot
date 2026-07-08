@@ -1,8 +1,9 @@
 ---
 id: ISSUE-004
 title: task file committed on feature branch vanishes from queue after branch-return checkout
-status: open
+status: resolved
 created: 2026-07-08
+resolved: 2026-07-08
 ---
 
 ## Summary
@@ -22,3 +23,7 @@ A queue entry can finish 100% successfully — real commits, all requirements pa
   1. Root cause: `commands/autopilot.md`'s TDD Task Completion mode now explicitly instructs staging only the specific source/test files per requirement commit — never `git add -A`/`git add .`, and never the task file, notes file, or analytics directory (autopilot's own bookkeeping must stay uncommitted on the feature branch).
   2. Defense in depth: `run.sh`'s queue-mode branch-return step now runs `git checkout <feature-branch> -- <entry-dir>` immediately after switching back to the start branch — a best-effort restore of the entry directory from the feature branch's tree, so even a session that ignores the instruction above can't corrupt the queue's view of a genuinely-finished entry. No-op when the file was never committed on the feature branch (already survives as untracked content).
   3. Verified directly against the live corrupted state: ran the same restore command (`git checkout divide -- docs/autopilot/divide`) against the user's actual `~/Dev/queue-test` project and confirmed `autopilot queue list` immediately reported `divide` as `done` again with no data loss.
+
+## Resolution
+
+- **2026-07-08:** Fixed in `run.sh` and `commands/autopilot.md` — commit `4ca53ee`.
