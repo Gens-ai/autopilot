@@ -656,7 +656,12 @@ fi
 # Build Claude CLI options (shared between modes)
 # --allowedTools: pre-approve all tools so autopilot runs without permission prompts
 # Note: workspace trust prompt appears once per project directory (accept manually first time)
-CLAUDE_OPTS=(--allowedTools 'Bash(*)' Read Edit Write Glob Grep Task Skill NotebookEdit 'WebFetch(*)' WebSearch 'mcp__*')
+# MCP tools are NOT allow-listed here: "mcp__*" is silently ignored by the CLI
+# (allow rules require a literal server name, e.g. "mcp__<server>__*" - only the
+# tool segment may glob). A generic wrapper can't know which MCP servers any
+# given project uses, so projects that need MCP tools during autopilot runs
+# should allow-list them in their own .claude/settings.json instead.
+CLAUDE_OPTS=(--allowedTools 'Bash(*)' Read Edit Write Glob Grep Task Skill NotebookEdit 'WebFetch(*)' WebSearch)
 if [[ -n "$MODEL" ]]; then
     CLAUDE_OPTS+=(--model "$MODEL")
 fi
