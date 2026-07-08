@@ -557,6 +557,22 @@ if [[ "$MODE" == "queue" ]]; then
         echo -e "${BLUE}=== Queue entry $ENTRIES_RUN: $NEXT_TASK ===${NC}"
         "$QUEUE_BIN" stamp start "$NEXT_TASK" || true
 
+        # Snapshot dirty state before the entry runs, excluding autopilot's own
+        # bookkeeping (queue stamps, lock files, the entry's own notes/analytics).
+        # Compared against the post-entry snapshot below: pre-existing untracked
+        # cruft unrelated to autopilot (stray logs, .env files, editor droppings)
+        # must not block the drain forever - only NEW dirt introduced by this
+        # entry's run should.
+        BEFORE_STATUS=""
+        if [[ -n "$START_BRANCH" ]]; then
+            DIRTY_EXCLUDES=(":(exclude)$QUEUE_FILE" ":(exclude).autopilot")
+            ENTRY_DIR=$(dirname "$NEXT_TASK")
+            if [[ "$ENTRY_DIR" != "." ]]; then
+                DIRTY_EXCLUDES+=(":(exclude)$ENTRY_DIR")
+            fi
+            BEFORE_STATUS=$(git status --porcelain -- . "${DIRTY_EXCLUDES[@]}" 2>/dev/null | sort)
+        fi
+
         # Child in background + wait, so signal traps fire promptly while it runs
         "${BASH_SOURCE[0]}" "$NEXT_TASK" "${CHILD_OPTS[@]}" &
         CHILD_PID=$!
@@ -597,23 +613,21 @@ if [[ "$MODE" == "queue" ]]; then
         fi
 
         # Return to the starting branch so the next feature branches off the
-        # same base. A dirty tree means the entry left uncommitted work behind -
-        # stop rather than start the next feature on top of it. Autopilot's own
-        # bookkeeping churn (queue stamps, task-file flags, notes, analytics,
-        # lock files) is expected between entries and must not count as dirty.
+        # same base. Only NEW dirt introduced by this entry's run should stop
+        # the drain - pre-existing untracked cruft (unrelated to autopilot,
+        # e.g. a stray log file or .env) would otherwise block queue mode
+        # forever, defeating the unattended-overnight use case.
         if [[ -n "$START_BRANCH" ]]; then
-            DIRTY_EXCLUDES=(":(exclude)$QUEUE_FILE" ":(exclude).autopilot")
-            ENTRY_DIR=$(dirname "$NEXT_TASK")
-            if [[ "$ENTRY_DIR" != "." ]]; then
-                DIRTY_EXCLUDES+=(":(exclude)$ENTRY_DIR")
-            fi
-            if [[ -n "$(git status --porcelain -- . "${DIRTY_EXCLUDES[@]}" 2>/dev/null)" ]]; then
-                echo -e "${YELLOW}Working tree is dirty after $NEXT_TASK - stopping so the next entry doesn't build on uncommitted changes${NC}"
+            AFTER_STATUS=$(git status --porcelain -- . "${DIRTY_EXCLUDES[@]}" 2>/dev/null | sort)
+            NEW_DIRT=$(comm -13 <(echo "$BEFORE_STATUS") <(echo "$AFTER_STATUS"))
+            if [[ -n "$NEW_DIRT" ]]; then
+                echo -e "${YELLOW}Entry left new uncommitted changes - stopping so the next entry doesn't build on top of them:${NC}"
+                echo "$NEW_DIRT" | sed 's/^/    /'
                 break
             fi
             CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
             if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "$START_BRANCH" ]]; then
-                if git checkout "$START_BRANCH" 2>/dev/null; then
+                if git checkout -q "$START_BRANCH" 2>/dev/null; then
                     echo -e "${BLUE}Returned to branch $START_BRANCH${NC}"
                 else
                     echo -e "${YELLOW}Could not return to branch $START_BRANCH - stopping so the next entry doesn't stack on $CURRENT_BRANCH${NC}"
