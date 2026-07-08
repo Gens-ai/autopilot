@@ -1,8 +1,9 @@
 ---
 id: ISSUE-003
 title: queue drain blocks forever on pre-existing untracked cruft unrelated to autopilot
-status: open
+status: resolved
 created: 2026-07-07
+resolved: 2026-07-07
 ---
 
 ## Summary
@@ -20,3 +21,7 @@ The queue drain's dirty-tree check (already scoped to exclude autopilot's own bo
 
 - **2026-07-07:** Fix: capture a `git status --porcelain` snapshot (with the ISSUE-002 exclusions) immediately before each entry starts, and after the entry finishes diff it against a fresh snapshot with `comm -13` — only paths that are dirty *after* but were not dirty *before* count as "new dirt" and halt the drain. Verified with a targeted re-test: planted an untracked `NOTES.local.txt` in the scratch repo before starting a fresh drain (simulating unrelated pre-existing cruft), and the second queued entry (`string-utils`) completed and committed normally, correctly ignoring the planted file.
 - **2026-07-07:** Also cleaned up a cosmetic side effect noticed during the fix: `git checkout` prints an unlabeled `M\t<path>` merge report to stdout when it carries forward uncommitted bookkeeping edits (queue stamps, task-file `passes` flags) across the branch-return step. Added `-q` to that checkout call so the drain log doesn't show raw, unexplained diff-status lines.
+
+## Resolution
+
+- **2026-07-07:** Fixed in `run.sh` — commit `7b4622f`.
