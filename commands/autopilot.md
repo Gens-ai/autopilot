@@ -356,6 +356,7 @@ Process ONE requirement at a time. Pick the next workable incomplete requirement
 2. Track files you modify
 3. If requirement has a package field then use that package feedback loop commands from workspaces config
 4. If requirement has an issue field then append issue reference to commit messages
+5. **Stage only the specific source/test files you changed for this requirement** — never `git add -A` or `git add .`. Never stage TASKFILE itself, its `-notes.md` file, or its `analytics/` directory as part of a requirement commit. These are autopilot's own bookkeeping: they must stay as uncommitted local state on the feature branch, not get swept into feature-branch commits. (Reason: when running via `autopilot` queue mode, each entry's feature branch gets checked out and back between queue entries — a task file committed on the feature branch is absent from the branch you return to and git deletes it from disk on checkout, making a fully-completed entry look "missing" to the queue even though the work is done.)
 
 TDD Cycle:
 - RED: Write failing test and run it scoped to just the new test file (pass the file path as an argument to TEST_CMD, e.g. TEST_CMD path/to/new.test.ts, using whatever scoping syntax this project's test runner supports) and VERIFY TEST FAILS. This phase only needs to confirm the new test is red, not guard against regressions, so do not pay for the full suite here. If the test command's scoping syntax is unclear or does not cleanly isolate a single file, fall back to the full TEST_CMD.

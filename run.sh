@@ -629,6 +629,16 @@ if [[ "$MODE" == "queue" ]]; then
             if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "$START_BRANCH" ]]; then
                 if git checkout -q "$START_BRANCH" 2>/dev/null; then
                     echo -e "${BLUE}Returned to branch $START_BRANCH${NC}"
+                    # If the session committed the entry's own task/notes/analytics
+                    # bookkeeping on the feature branch instead of leaving it
+                    # uncommitted (the expected convention), checkout above just
+                    # deleted it from this branch's working tree - it's tracked on
+                    # $CURRENT_BRANCH but absent from $START_BRANCH's. Restore it so
+                    # the queue's view of this entry doesn't regress to "missing"
+                    # even though the work genuinely finished. No-op (harmless
+                    # failure) when the entry was never committed on the feature
+                    # branch, since it already survived as an untracked file.
+                    git checkout -q "$CURRENT_BRANCH" -- "$ENTRY_DIR" 2>/dev/null || true
                 else
                     echo -e "${YELLOW}Could not return to branch $START_BRANCH - stopping so the next entry doesn't stack on $CURRENT_BRANCH${NC}"
                     break
