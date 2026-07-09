@@ -15,6 +15,8 @@ Autopilot is a workflow toolkit for autonomous Test-Driven Development using Cla
 2. `/tasks prd-file.md` → Convert PRD to machine-readable JSON task file
 3. `/autopilot tasks.json` → Execute TDD cycles autonomously via built-in loop
 
+Before making design or architecture decisions (new state files, where status lives, prompt vs. script responsibilities), study `VISION.md` — it records the project's design principles and roadmap.
+
 ## Architecture
 
 **Commands** (`commands/*.md`) are symlinked to `~/.claude/commands/` and become slash commands:

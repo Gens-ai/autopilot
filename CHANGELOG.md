@@ -2,6 +2,11 @@
 
 All notable changes to Autopilot will be documented in this file.
 
+## 2026-07-09
+
+### Added
+- **`VISION.md`** - Project vision document: the problem autopilot solves, the core thesis (human judgment up front, machine execution after, ground truth in between), ten design principles earned through dogfooding, explicit non-goals, and the roadmap toward a self-managing, queue-fed development pipeline. Linked from the README intro and from `CLAUDE.md` (as a study-before-design-decisions pointer for agent sessions).
+
 ## 2026-07-07
 
 ### Added

@@ -6,6 +6,8 @@ Inspired by the [Ralph Wiggum technique](https://ghuntley.com/ralph/), autopilot
 
 [Watch the intro video](https://www.loom.com/share/741f5db667c4485c9571dc6ec1a5a994)
 
+Curious where the project is headed and why it works the way it does? See [VISION.md](VISION.md) for the thesis, design principles, and roadmap.
+
 ## Credits
 
 This workflow gratefully builds on contributions from the community:
