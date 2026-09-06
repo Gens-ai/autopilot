@@ -14,16 +14,30 @@ mkdir -p ~/.claude/commands
 mkdir -p ~/.claude/hooks
 
 # Symlink command files
-for cmd in prd.md tasks.md autopilot.md autopilot:init.md analyze.md; do
-    if [ -L ~/.claude/commands/$cmd ]; then
-        rm ~/.claude/commands/$cmd
-    elif [ -f ~/.claude/commands/$cmd ]; then
-        echo "Backing up existing $cmd to $cmd.bak"
-        mv ~/.claude/commands/$cmd ~/.claude/commands/$cmd.bak
+for cmd in prd.md tasks.md autopilot.md analyze.md cancel.md stop.md test-user-stories.md; do
+    if [ -f "$SCRIPT_DIR/commands/$cmd" ]; then
+        if [ -L ~/.claude/commands/$cmd ]; then
+            rm ~/.claude/commands/$cmd
+        elif [ -f ~/.claude/commands/$cmd ]; then
+            echo "Backing up existing $cmd to $cmd.bak"
+            mv ~/.claude/commands/$cmd ~/.claude/commands/$cmd.bak
+        fi
+        ln -s "$SCRIPT_DIR/commands/$cmd" ~/.claude/commands/$cmd
+        echo "  Linked: $cmd"
     fi
-    ln -s "$SCRIPT_DIR/commands/$cmd" ~/.claude/commands/$cmd
-    echo "  Linked: $cmd"
 done
+
+# Symlink namespaced subcommands: commands/autopilot/<name>.md -> /autopilot:<name>
+if [ -d "$SCRIPT_DIR/commands/autopilot" ]; then
+    mkdir -p ~/.claude/commands/autopilot
+    for sub in "$SCRIPT_DIR"/commands/autopilot/*.md; do
+        [ -f "$sub" ] || continue
+        name=$(basename "$sub")
+        rm -f ~/.claude/commands/autopilot/"$name"
+        ln -s "$sub" ~/.claude/commands/autopilot/"$name"
+        echo "  Linked: autopilot/$name"
+    done
+fi
 
 # Symlink AGENTS.md
 if [ -L ~/.claude/AGENTS.md ]; then
@@ -59,6 +73,17 @@ fi
 ln -s "$SCRIPT_DIR/hooks/git-commit" ~/.claude/hooks/git-commit
 chmod +x ~/.claude/hooks/git-commit
 echo "  Linked: git-commit → ~/.claude/hooks/git-commit"
+
+# Symlink update-analytics.sh
+if [ -L ~/.claude/hooks/update-analytics.sh ]; then
+    rm ~/.claude/hooks/update-analytics.sh
+elif [ -f ~/.claude/hooks/update-analytics.sh ]; then
+    echo "Backing up existing update-analytics.sh to update-analytics.sh.bak"
+    mv ~/.claude/hooks/update-analytics.sh ~/.claude/hooks/update-analytics.sh.bak
+fi
+ln -s "$SCRIPT_DIR/hooks/update-analytics.sh" ~/.claude/hooks/update-analytics.sh
+chmod +x ~/.claude/hooks/update-analytics.sh
+echo "  Linked: update-analytics.sh → ~/.claude/hooks/update-analytics.sh"
 
 # Register the Stop hook in ~/.claude/settings.json — the file Claude Code
 # actually reads. (Older installs wrote ~/.claude/hooks.json, which Claude Code
