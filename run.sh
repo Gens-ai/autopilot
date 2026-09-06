@@ -19,6 +19,10 @@
 #   --dry-run       Show what would be done without executing
 #   --help          Show this help message
 #
+# Environment:
+#   AUTOPILOT_IDLE_TIMEOUT  seconds without requirement progress before a
+#                           session is treated as stalled (default: 1800)
+#
 # Examples:
 #   ./run.sh docs/autopilot/feature.json
 #   ./run.sh docs/autopilot/feature.json --batch 3
@@ -678,6 +682,10 @@ fi
 # -- separates options from positional prompt arg (--allowedTools is variadic)
 CLAUDE_OPTS+=(--)
 
+# A backgrounded claude inherits /dev/null on stdin and then draws nothing at
+# all, so the session is impossible to follow. Hand it the tty when there is one.
+AP_STDIN=/dev/null; [[ -c /dev/tty ]] && AP_STDIN=/dev/tty
+
 # ============================================================================
 # COMMAND MODE LOOP
 # ============================================================================
@@ -738,7 +746,7 @@ After the command completes, immediately output COMPLETE and exit. Do not wait f
 LOOPSTATE
 
             # Run Claude with the command wrapped in autonomous instructions
-            claude "${CLAUDE_OPTS[@]}" "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." &
+            claude "${CLAUDE_OPTS[@]}" "Run $FULL_COMMAND autonomously. Do not ask for user input - make reasonable choices yourself. When the command completes, output COMPLETE and stop." < "$AP_STDIN" &
             CLAUDE_PID=$!
             CURRENT_CLAUDE_PID=$CLAUDE_PID
 
@@ -883,14 +891,32 @@ while true; do
         SESSION_START_EPOCH=$(date +%s)
 
         # Run Claude in background so we can monitor for batch completion
-        claude "${CLAUDE_OPTS[@]}" "$AUTOPILOT_CMD" &
+        claude "${CLAUDE_OPTS[@]}" "$AUTOPILOT_CMD" < "$AP_STDIN" &
         CLAUDE_PID=$!
         CURRENT_CLAUDE_PID=$CLAUDE_PID
 
         # Monitor for batch completion by checking task JSON
-        IDLE_TIMEOUT=1800  # 30 minutes with no progress = assume stuck
+        # No requirement progress for this long makes a session a stall candidate.
+        IDLE_TIMEOUT=${AUTOPILOT_IDLE_TIMEOUT:-1800}
         LAST_PROGRESS=0
         IDLE_SECONDS=0
+
+        # Stalled, or just busy? A long build, test run or dependency download
+        # makes no requirement progress for many minutes while writing files the
+        # whole time. If anything under the project tree or /tmp (where Claude
+        # parks command output) changed in the last 3 minutes, the session is
+        # working - leave it alone. Nothing changed at all = really stalled.
+        # A scan that takes too long (rc=124) counts as busy: killing live work
+        # only to restart it is how a loop eats a token budget.
+        TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
+        fs_active() {
+            [[ -n "$TIMEOUT_BIN" ]] || return 0   # no timeout(1): assume busy, never kill blind
+            "$TIMEOUT_BIN" 5 bash -c '
+                find "$1" -type f -mmin -3 -not -path "*/.git/*" -print -quit 2>/dev/null | grep -q . && exit 0
+                find /tmp -maxdepth 1 -type f -mmin -3 -print -quit 2>/dev/null | grep -q . && exit 0
+                exit 1' _ "$PWD"
+            [[ $? -ne 1 ]]   # 0=recent write, 124=scan timed out -> busy; only 1 means quiet
+        }
 
         while kill -0 "$CLAUDE_PID" 2>/dev/null; do
             # Check for manual stop request
@@ -946,13 +972,19 @@ while true; do
                     rm -f "$LOOP_STATE_FILE"
                     break
                 fi
-                # No progress at all and idle too long = stuck
+                # No progress and we have waited long enough. Only kill when the
+                # disk is quiet too, otherwise a slow build gets shot mid-flight.
                 if [[ "$PROGRESS" -eq 0 && "$IDLE_SECONDS" -ge "$IDLE_TIMEOUT" ]]; then
-                    echo ""
-                    echo -e "${YELLOW}No progress for ${IDLE_TIMEOUT}s - terminating idle session...${NC}"
-                    kill_session "$CLAUDE_PID"
-                    rm -f "$LOOP_STATE_FILE"
-                    break
+                    if fs_active; then
+                        # busy: rewind a minute and look again in ~60s
+                        IDLE_SECONDS=$((IDLE_TIMEOUT - 60))
+                    else
+                        echo ""
+                        echo -e "${YELLOW}No progress for ${IDLE_TIMEOUT}s and the disk is quiet - terminating stalled session...${NC}"
+                        kill_session "$CLAUDE_PID"
+                        rm -f "$LOOP_STATE_FILE"
+                        break
+                    fi
                 fi
             fi
 
